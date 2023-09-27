@@ -18,7 +18,7 @@ data Expr a where
   Var :: Name -> Expr a
   Num :: Int -> Expr a
   Constructor :: Int -> Int -> Expr a
-  Application :: (Expr a) -> (Expr a) -> Expr a
+  Application :: (Expr a) -> (Expr a) -> Expr a -- function and arg
   Let :: IsRecursive -> [(a, Expr a)] -> (Expr a) -> Expr a
   Case :: (Expr a) -> [Alter a] -> Expr a
   Lambda :: [a] -> (Expr a) -> Expr a
@@ -34,3 +34,9 @@ type SuperCombinator a = (Name, [a], Expr a)
 type CoreSuperCombinator = SuperCombinator Name
 type Program a = [SuperCombinator a]
 type CoreProgram = Program Name
+
+makeSuperCombinator :: Name -> [a] -> Expr a -> SuperCombinator a
+makeSuperCombinator n as exp = (n, as, exp)
+
+makeProgram :: [SuperCombinator a] -> Program a
+makeProgram scs = scs

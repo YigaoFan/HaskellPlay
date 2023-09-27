@@ -37,9 +37,9 @@ lex (c : cs) lineNum
     var = c : takeWhile isIdChar cs
     restChars = dropWhile isIdChar cs
 lex (c0 : c1 : cs) lineNum -- last line in file which has comment will pass this item?
-  | c0 == '|' && c1 == '|' = lex nextLine (lineNum + 1)
+  | c0 == '|' && c1 == '|' = lex remain lineNum
   where
-    n : nextLine = dropWhile ('\n' /=) cs
+    remain = dropWhile ('\n' /=) cs
 lex (c0 : c1 : cs) lineNum
   | [c0, c1] `elem` twoCharOps = (lineNum, [c0, c1]) : lex cs lineNum
 lex (c : cs) lineNum = (lineNum, [c]) : lex cs lineNum

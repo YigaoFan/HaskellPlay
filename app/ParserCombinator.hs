@@ -9,8 +9,9 @@ import GHC.Base (const)
 
 type Parser t = [Token] -> [(t, [Token])]
 
-alt :: Parser t -> Parser t -> Parser t
-alt p0 p1 toks = p0 toks ++ p1 toks
+alt :: [Parser t] -> Parser t
+alt [] _ = []
+alt (p : ps) toks = p toks ++ alt ps toks
 
 next :: (t0 -> t1 -> t2) -> Parser t0 -> Parser t1 -> Parser t2
 next combine p0 p1 tokens =
@@ -30,24 +31,38 @@ next4 combine p0 p1 p2 p3 tokens =
   [ (combine v0 v1 v2 v3, toks1) | ((v0, v1, v2), toks0) <- next3 asTuple p0 p1 p2 tokens, (v3, toks1) <- p3 toks0
   ]
 
+asTuple4 :: a -> b -> c -> d -> (a, b, c, d)
+asTuple4 a b c d = (a, b, c, d)
+
+next5 :: (t0 -> t1 -> t2 -> t3 -> t4 -> t5) -> Parser t0 -> Parser t1 -> Parser t2 -> Parser t3 -> Parser t4 -> Parser t5
+next5 combine p0 p1 p2 p3 p4 tokens =
+  [ (combine v0 v1 v2 v3 v4, toks1) | ((v0, v1, v2, v3), toks0) <- next4 asTuple4 p0 p1 p2 p3 tokens, (v4, toks1) <- p4 toks0
+  ]
+
 oneOrMore :: Parser a -> Parser [a]
 oneOrMore p input =
-  [ (v : vs, remain) | (v, toks) <- p input, (vs, remain) <- oneOrMore p toks -- I am talent! list comprehension from where stmt
+  [ (v : vs, remain) | (v, toks) <- p input, (vs, remain) <- zeroOrMore p toks -- I am talent! list comprehension from where stmt
   -- up is right?
   -- 这种第二个式子以来第一个式子的计算结果的，第一个式子结果是空列表，第二还会算吗？
   ]
 
-empty :: [a] -> Parser [a]
-empty as toks = [(as, toks)]
+empty :: a -> Parser a
+empty a toks = [(a, toks)]
 
+-- keep one parser result
 zeroOrMore :: Parser a -> Parser [a]
-zeroOrMore p = alt (oneOrMore p) (empty []) -- how this [] work?
+zeroOrMore p input =
+  if null r
+    then empty [] input
+    else r
+  where r = oneOrMore p input
 
 apply :: Parser a -> (a -> b) -> Parser b
 apply p convert input = [(convert v, toks) | (v, toks) <- p input]
 
 oneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
-oneOrMoreWithSep p0 p1 = oneOrMore (next const p0 p1)
+oneOrMoreWithSep p0 p1 = next (:) p0 (zeroOrMore (next (\_ r -> r) p1 p0))
 
 satisfy :: (String -> Bool) -> Parser String
-satisfy pred ((_, str) : ts) = [(str, ts) | pred str]
+satisfy pred [] = []
+satisfy pred ((_, s) : ts) = [(s, ts) | pred s]
