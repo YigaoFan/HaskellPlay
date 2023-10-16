@@ -1,26 +1,25 @@
 module Parser where
 
-import Data.Bool (Bool)
-import Data.String (String)
-import GHC.Int (Int)
-import qualified Data.Char as Char
-import Data.Char (isDigit)
+-- import Data.Bool (Bool)
+-- import Data.String (String)
+-- import GHC.Int (Int)
+import Data.Char (isAlpha, isDigit)
 import ParserCombinator (Parser, satisfy, apply, oneOrMoreWithSep, next4, zeroOrMore, alt, next3, next5, next, oneOrMore, empty)
 import Data.Foldable (notElem)
 import Data.Eq ((==))
 import GHC.Base ( (||), (&&) )
 import Text.Read (read)
 import AST (CoreExpr, CoreProgram, CoreSuperCombinator, Expr (Var, Num, Application, Constructor, Let, Case, Lambda), makeSuperCombinator, Name, Alter)
-import Lexer (Token)
-import Prelude hiding (exp, Left, Right)
-import Data.List (find)
+import Lexer (Token, lex)
+import Prelude hiding (exp, Left, Right, lex)
+import Data.List (find, map)
 
 keywords :: [String]
 keywords = ["let", "letrc", "case", "in", "of", "Pack"]
 
 -- refine this def TODO
 var :: Parser String
-var = satisfy (\t@(c : cs) -> notElem t keywords && (Char.isAlpha c || '_' == c))
+var = satisfy (\t@(c : cs) -> notElem t keywords && (isAlpha c || '_' == c))
 
 lit :: String -> Parser String
 lit literal = satisfy (==literal)
@@ -88,6 +87,7 @@ lambda = next4 (\_ vs _ e -> Lambda vs e) (lit "\\") (oneOrMore var) (lit ".") e
 exp :: Parser CoreExpr
 exp = alt [
     localDef,
+    localRecurDef,
     caseExp,
     lambda,
     atomicExp,
@@ -104,10 +104,11 @@ syntax = takeFirst . program
     where
       takeFirst ((p, []) : _) = p
       takeFirst (_ : others) = takeFirst others --notEmptyRemainToks
-      takeFirst r = error ("Syntax error: result length" ++ show (length r))
+      takeFirst r = error ("Syntax error: result length " ++ show (length r))
 
 allSyntax :: [Token] -> [CoreProgram]
 allSyntax = map fst . program
 
-
+parse :: [Char] -> CoreProgram
+parse s = syntax (lex s 1)
 

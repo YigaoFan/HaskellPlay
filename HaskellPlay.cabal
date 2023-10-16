@@ -49,6 +49,9 @@ executable HaskellPlay
         AST
         PrettyPrint
         CorePrelude
+        Compiler
+        Evaluator
+        Program
 
 test-suite HaskellPlayTest    
     type:       exitcode-stdio-1.0
