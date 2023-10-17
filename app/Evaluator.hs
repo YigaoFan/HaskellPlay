@@ -1,5 +1,6 @@
 module Evaluator where
-import Compiler (TiState, isDataNode, heapLookup, applyToStats, incTiStatSteps, Node(..), Addr, TiStack, Heap, TiGlobals, TiHeap, Assoc, heapAlloc, lookup, getTiStatSteps)
+import Compiler (TiState, isDataNode, applyToStats, incTiStatSteps, Node(..), TiStack, TiGlobals, TiHeap, Assoc, getTiStatSteps)
+import Heap (Addr, heapAlloc, heapLookup, lookup, heapUpdate)
 import AST (CoreExpr, Name, SuperCombinator, nonRecursive, recursive)
 import qualified AST (Expr (..))
 import Prelude hiding (lookup, concat)
@@ -26,16 +27,16 @@ step state@(stack, dump, heap, globals, stats) =
     dispatch (Num n) = stepNum state n
     dispatch (Application a0 a1) = stepApplication state a0 a1
     dispatch (SuperCombinator name args body) = stepSuperCombinator state name args body
-    -- dispatch (IndirectNode a) = 
+    dispatch (IndirectNode a) = (a : tail stack, dump, heap, globals, stats)
 stepNum :: TiState -> Int -> TiState
 stepNum _ _ = error "Number applied as a function!"
 stepApplication :: TiState -> Addr -> Addr -> TiState
 stepApplication (stack, dump, heap, globals, stats) a0 a1 =
   (a0 : stack, dump, heap, globals, stats) -- put function into stack to make it eval function firstly
 stepSuperCombinator :: TiState -> Name -> [Name] -> CoreExpr -> TiState
-stepSuperCombinator (stack, dump, heap, globals, stats) name argNames body = do
+stepSuperCombinator (stack, dump, heap, globals, stats) name argNames body =
   if length argBinds == length argNames
-    then (newStack, dump, newHeap, globals, stats)
+    then (newStack, dump, heapUpdate newHeap (stack!!length argNames) (IndirectNode resultAddr), globals, stats)
     else error ("pass too few arguments to " ++ name)
   where
     argBinds = zip argNames (getArgs heap stack) -- args 在这里和下面都消费了栈上的项

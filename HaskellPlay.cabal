@@ -24,9 +24,15 @@ extra-source-files: CHANGELOG.md
 library HaskellPlayLib
     exposed-modules:
         Lexer
-        Parser
         ParserCombinator
+        Parser
         AST
+        PrettyPrint
+        CorePrelude
+        Compiler
+        Evaluator
+        Program
+        Heap
     default-language: Haskell2010
     build-depends:    base
     hs-source-dirs:   app
@@ -52,6 +58,7 @@ executable HaskellPlay
         Compiler
         Evaluator
         Program
+        Heap
 
 test-suite HaskellPlayTest    
     type:       exitcode-stdio-1.0

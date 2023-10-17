@@ -29,12 +29,12 @@ src0 =
   \        b = pair y a\n\
   \        in\n\
   \        fst (snd (snd (snd a)));\n\
-  \main = f 3 4"
+  \main = f (id 3) 4"
 
 src1 = "main = letrec f = f x in f" -- not return
 main :: IO ()
 main = do
-  let r = run src0
+  let r = run "main = twice twice id 3" -- 想一下 indirect 这个的过程
   putStr r
 
 -- difference between putStr and print
