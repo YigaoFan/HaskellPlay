@@ -34,7 +34,7 @@ src0 =
 src1 = "main = letrec f = f x in f" -- not return
 main :: IO ()
 main = do
-  let r = run "main = twice twice id 3" -- 想一下 indirect 这个的过程
+  let r = run "main = twice twice id 3" -- 想一下 indirect 这个的过程，较之上一版本(33)少了一步
   putStr r
 
 -- difference between putStr and print

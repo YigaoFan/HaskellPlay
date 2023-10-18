@@ -44,6 +44,10 @@ stepSuperCombinator (stack, dump, heap, globals, stats) name argNames body =
     (newHeap, resultAddr) = instantiate body heap env
     newStack = resultAddr : drop (length argNames + 1) stack -- instantiate 到 heap 上，然后把函数的body再推到栈上运行
 
+-- TODO:
+-- 修好 indent
+-- 理解 indirect
+
 -- why getArgs do like this? 思考整个 evaluator 的过程。
 -- 懂了，由于压栈和都是单参数函数调用，所以栈上当前函数调用的参数，都在下一个栈项 Application 的第二个参数，即下面的 arg 上
 getArgs :: TiHeap -> TiStack -> [Addr]
