@@ -39,10 +39,6 @@ atomicExp = alt [apply var Var, apply num Num, pack, expWithParen]
 
 -- 我感觉书上说的这种变换，虽然语义没变，因为 atomic exp 和 exp 互相引用的关系（是基本等同），但是语法变了
 application :: Parser CoreExpr
--- application = apply (next (:) atomicExp (oneOrMore atomicExp)) handle
---   where
---     -- handle [x] = Var x --怎么处理一个的情况呢？
---     handle (ae0 : ae1 : aes) = foldl Application (Application ae0 ae1) aes
 application = apply (oneOrMore atomicExp) (\(ae0 : aes) ->
   if null aes
     then ae0
