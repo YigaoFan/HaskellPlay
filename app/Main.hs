@@ -31,10 +31,18 @@ src0 =
   \        fst (snd (snd (snd a)));\n\
   \main = f (id 3) 4"
 
-src1 = "main = letrec f = f x in f" -- not return
+src1 = "main = letrec f = f x in f" -- not return 应该是暂时不支持这种
+src2 = "main = twice twice id 3" -- 想一下 indirect 这个的过程，较之上一版本(33)少了一步
+
+src3 = "main = twice negate 3"
+
+src4 = "main = negate (id 3)"
+
+src5 = "main = 1 + 2 * 3 / 1"
 main :: IO ()
 main = do
-  let r = run "main = twice twice id 3" -- 想一下 indirect 这个的过程，较之上一版本(33)少了一步
+  let r = run src5
+  -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
 -- difference between putStr and print

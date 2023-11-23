@@ -17,9 +17,9 @@ heapLookup :: Heap a -> Addr -> a
 heapLookup (_, _, addrObjs) addr = lookup addrObjs addr (error ("don't have the addr" ++ show addr))
 heapAlloc :: Heap a -> a -> (Heap a, Addr)
 heapAlloc (size, next : free, addrObjs) a = ((size + 1, free, (next, a) : addrObjs), next)
--- replace first item while predicate is True
+-- replace first item while predicate is True, must have one item satisfy pred
 replaceWhile :: (a -> Bool) -> a -> [a] -> [a]
-replaceWhile pred a [] = []
+replaceWhile pred a [] = error "no item satisfy pred"
 replaceWhile pred a (x : xs)
   | pred x = a : xs
   | otherwise = x : replaceWhile pred a xs

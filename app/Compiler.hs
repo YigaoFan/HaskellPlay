@@ -4,16 +4,17 @@ import CorePrelude (defs)
 import Heap
 import Prelude hiding (lookup)
 
-
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 type TiStack = [Addr]
-data TiDump = DummyTiDump
-initTiDump = DummyTiDump
+type TiDump = [TiStack]
+initTiDump = []
 type TiHeap = Heap Node
+data Primitive = Neg | Add | Sub | Mul | Div
 data Node = Application Addr Addr
   | SuperCombinator Name [Name] CoreExpr
   | Num Int
   | IndirectNode Addr
+  | Prim Name Primitive
 isDataNode :: Node -> Bool
 isDataNode (Num _) = True
 isDataNode _       = False
@@ -41,8 +42,24 @@ allocSuperCombinator heap (name, args, body) =
 heapAddrs :: Heap a -> [Addr]
 heapAddrs (_, _, addrObjs) = map fst addrObjs
 
+allocatePrim :: TiHeap -> (Name, Primitive) -> (TiHeap, (Name, Addr))
+allocatePrim heap (name, primitive) =
+  let (heap', addr) = heapAlloc heap (Prim name primitive)
+  in
+    (heap', (name, addr))
+primitives :: Assoc Name Primitive
+primitives = [
+  ("negate", Neg),
+  ("+", Add),
+  ("-", Sub),
+  ("*", Mul),
+  ("/", Div)
+  ]
 buildInitHeap :: [CoreSuperCombinator] -> (TiHeap, TiGlobals)
-buildInitHeap = mapAccum allocSuperCombinator initHeap
+buildInitHeap scDefs = (heap2, scAddrs ++ primAddrs)
+  where
+    (heap1, scAddrs) = mapAccum allocSuperCombinator initHeap scDefs
+    (heap2, primAddrs) = mapAccum allocatePrim heap1 primitives
 compile :: [CoreSuperCombinator] -> TiState
 compile program =
   (initStack, initTiDump, initHeap, globals, initTiStats)
