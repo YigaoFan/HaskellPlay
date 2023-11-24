@@ -9,12 +9,16 @@ type TiStack = [Addr]
 type TiDump = [TiStack]
 initTiDump = []
 type TiHeap = Heap Node
-data Primitive = Neg | Add | Sub | Mul | Div
+data Primitive = 
+  Neg | Add | Sub | Mul | Div |
+  Construct Int Int | If | Greater | GreaterEq |
+  Less | LessEq | Eq | NotEq
 data Node = Application Addr Addr
   | SuperCombinator Name [Name] CoreExpr
   | Num Int
   | IndirectNode Addr
   | Prim Name Primitive
+  | Data Int [Addr]
 isDataNode :: Node -> Bool
 isDataNode (Num _) = True
 isDataNode _       = False

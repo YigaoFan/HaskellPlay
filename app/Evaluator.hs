@@ -54,7 +54,11 @@ stepPrim state Add = primArith state (+)
 stepPrim state Sub = primArith state (-)
 stepPrim state Mul = primArith state (*)
 stepPrim state Div = primArith state div
+stepPrim state (Construct tag arity) = primConstr state
 
+primConstr :: TiState -> TiState
+primConstr state =
+  
 primNeg :: TiState -> TiState
 primNeg (stack@[a, a1], dump, heap, globals, stats) = -- stack only contains two items in real world? Yes
   if isDataNode (heapLookup heap b)
@@ -105,7 +109,7 @@ instantiate (AST.Application e0 e1) heap env = heapAlloc heap2 (Application a0 a
     (heap2, a1) = instantiate e1 heap1 env
 instantiate (AST.Var v) heap env = (heap, lookup env v (error ("undefined name " ++ show v)))
 instantiate (AST.Constructor tag arity) heap env =
-  error "Can't instantiate constructor expr"
+  heapAlloc heap (Prim "Pack" (Construct tag arity))
 instantiate (AST.Let False defs body) heap env =
   instantiate body newHeap newEnv
   where
@@ -225,6 +229,12 @@ showNode (Prim name prim) =
   concat [
     Str "Prim ", Str name
   ]
+showNode (Data tag coms) =
+  concat [
+    Str "Data ", Str (show tag), Str "[",
+    interleave (Str ", ") (map showAddr coms),
+    Str "]"
+  ]
 showAddr :: Addr -> Sequence
 showAddr = Str . show
 
@@ -233,6 +243,6 @@ showHeap (size, free, addrObjs) =
   concat [
     Str "count: ", Str (show size), Newline,
     Str "{", Newline,
-    interleave Newline (map (\(addr, obj) -> concat [Str (show addr), Str " : ", showNode obj]) addrObjs), Newline,
+    interleave Newline (map (\(addr, obj) -> concat [showAddr addr, Str " : ", showNode obj]) addrObjs), Newline,
     Str "}", Newline
   ]
