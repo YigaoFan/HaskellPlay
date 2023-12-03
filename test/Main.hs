@@ -9,6 +9,7 @@ import Parser (lit, var, num)
 import ParserCombinator (alt, next, next3, oneOrMore, oneOrMoreWithSep, zeroOrMore)
 import Prelude (const)
 
+-- oneOrMoreWithSep behavior changed TODO
 -- Lexer test
 testLexer0 = TestCase (assertEqual "empty" (lex "" 1) [])
 testLexer1 = TestCase (assertEqual "digit" (lex "123" 1) [(1, "123")])

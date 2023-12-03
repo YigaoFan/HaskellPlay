@@ -61,7 +61,8 @@ apply :: Parser a -> (a -> b) -> Parser b
 apply p convert input = [(convert v, toks) | (v, toks) <- p input]
 
 oneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
-oneOrMoreWithSep p0 p1 = next (:) p0 (zeroOrMore (next (\_ r -> r) p1 p0))
+oneOrMoreWithSep p0 p1 = next (:) pair (zeroOrMore pair)
+  where pair = next const p0 p1
 
 satisfy :: (String -> Bool) -> Parser String
 satisfy pred [] = []

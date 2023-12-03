@@ -1,6 +1,7 @@
 module Heap where
 
 import Prelude hiding (lookup)
+import GHC.Stack (HasCallStack, prettyCallStack)
 
 type Addr = Int
 type Heap a = (Int, [Int], [(Int, a)])
@@ -13,8 +14,8 @@ lookup ((k, v) : xs) k' defaultValue
 
 initHeap :: Heap a
 initHeap = (0, [1..], [])
-heapLookup :: Heap a -> Addr -> a
-heapLookup (_, _, addrObjs) addr = lookup addrObjs addr (error ("don't have the addr" ++ show addr))
+heapLookup :: HasCallStack => Heap a -> Addr -> a
+heapLookup (_, _, addrObjs) addr = lookup addrObjs addr (error ("don't have the addr " ++ show addr))
 heapAlloc :: Heap a -> a -> (Heap a, Addr)
 heapAlloc (size, next : free, addrObjs) a = ((size + 1, free, (next, a) : addrObjs), next)
 -- replace first item while predicate is True, must have one item satisfy pred

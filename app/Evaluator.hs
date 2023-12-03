@@ -1,10 +1,11 @@
 module Evaluator where
-import Compiler (TiState, isDataNode, applyToStats, incTiStatSteps, Node(..), TiStack, TiGlobals, TiHeap, Assoc, getTiStatSteps, Primitive (..))
+import Compiler (TiState, isDataNode, applyToStats, incTiStatSteps, Node(..), TiStack, TiGlobals, TiHeap, Assoc, getTiStatSteps, Primitive (..), append)
 import Heap (Addr, heapAlloc, heapLookup, lookup, heapUpdate)
-import AST (CoreExpr, Name, SuperCombinator, nonRecursive, recursive)
+import AST (CoreExpr, Name, SuperCombinator, nonRecursive, recursive, Alter)
 import qualified AST (Expr (..))
 import Prelude hiding (lookup, concat)
 import PrettyPrint (display, concat, layn, Sequence (Newline, Str, Indent, Append), interleave, fillSpaceNum)
+import Text.Printf (printf)
 
 eval :: TiState -> [TiState]
 eval state = state : remain -- Ex 2.9 由于 Haskell 里惰性求值的存在，所以这样写把 state 隔离到求值 remain 的影响外，不管怎么样，都会有个 state 可以读到
@@ -14,35 +15,45 @@ eval state = state : remain -- Ex 2.9 由于 Haskell 里惰性求值的存在，
     nextState = doAdmin (step state)
 
 tiFinal :: TiState -> Bool
-tiFinal ([addr], [], heap, globals, stats) = isDataNode (heapLookup heap addr)
-tiFinal ([], d, _, _, _) = error ("Empty stack! dump size " ++ show (length d))
+tiFinal (_, [addr], [], heap, globals, stats) = isDataNode (heapLookup heap addr)
+tiFinal (_, [], [], _, _, _) = True
+tiFinal (_, [], d, _, _, _) = error ("Empty stack! dump size " ++ show (length d))
 tiFinal state = False
 doAdmin :: TiState -> TiState
 doAdmin = applyToStats incTiStatSteps
 step :: TiState -> TiState
-step state@(stack, dump, heap, globals, stats) =
+step state@(output, stack, dump, heap, globals, stats) =
   dispatch (heapLookup heap (head stack))
   where
+    dispatch (String s) = stepString state s
     dispatch (Num n) = stepNum state n
     dispatch (Application a0 a1) = stepApplication state a0 a1
     dispatch (SuperCombinator name args body) = stepSuperCombinator state name args body
-    dispatch (IndirectNode a) = (a : tail stack, dump, heap, globals, stats)
+    dispatch (IndirectNode a) = (output, a : tail stack, dump, heap, globals, stats)
     dispatch (Prim name primitive) = stepPrim state primitive
+    dispatch (Data tag coms) = stepData state tag coms
+stepDataNode (o, [_], s : dump, heap, globals, stats) = (o, s, dump, heap, globals, stats)
+stepDataNode _ = error "Data Node(like String, Num, Data) applied as a function!"
+stepData :: TiState -> Int -> [Addr] -> TiState
+stepData state tag coms = stepDataNode state
+stepDataNode :: TiState -> TiState
+stepString :: TiState -> String -> TiState
+stepString state s = stepDataNode state
 stepNum :: TiState -> Int -> TiState
-stepNum ([_], s : dump, heap, globals, stats) _ = (s, dump, heap, globals, stats)
-stepNum _ _ = error "Number applied as a function!"
+stepNum state _ = stepDataNode state
+
 stepApplication :: TiState -> Addr -> Addr -> TiState
-stepApplication (stack@(a : _), dump, heap, globals, stats) a0 a1 =
+stepApplication (output, stack@(a : _), dump, heap, globals, stats) a0 a1 =
   let node = heapLookup heap a1 in
     case node of
-      (IndirectNode addr) -> (stack, dump, heapUpdate heap a (Application a0 addr), globals, stats)
-      _ -> (a0 : stack, dump, heap, globals, stats) -- put function into stack to make it eval function firstly
+      (IndirectNode addr) -> (output, stack, dump, heapUpdate heap a (Application a0 addr), globals, stats)
+      _ -> (output, a0 : stack, dump, heap, globals, stats) -- put function into stack to make it eval function firstly
 
 stepSuperCombinator :: TiState -> Name -> [Name] -> CoreExpr -> TiState
-stepSuperCombinator (stack, dump, heap, globals, stats) name argNames body =
+stepSuperCombinator (output, stack, dump, heap, globals, stats) name argNames body =
   if length argBinds == length argNames
-    then (newStack, dump, newHeap, globals, stats)
-    else error ("pass too few arguments to " ++ name)
+    then (output, newStack, dump, newHeap, globals, stats)
+    else error $ printf "pass too few arguments to %s: %d from stack len(%d)" name (length argBinds) (length stack)
   where
     argBinds = zip argNames (getArgs heap stack) -- args 在这里和下面都消费了栈上的项
     env = argBinds ++ globals
@@ -54,37 +65,76 @@ stepPrim state Add = primArith state (+)
 stepPrim state Sub = primArith state (-)
 stepPrim state Mul = primArith state (*)
 stepPrim state Div = primArith state div
-stepPrim state (Construct tag arity) = primConstr state
+stepPrim state (Construct tag arity) = primConstr state tag arity
+stepPrim state If = primIf state
+stepPrim state Greater = primDyadic state (compareOperator (>))
+stepPrim state GreaterEq = primDyadic state (compareOperator (>=))
+stepPrim state Less = primDyadic state (compareOperator (<))
+stepPrim state LessEq = primDyadic state (compareOperator (<=))
+stepPrim state Eq = primDyadic state (compareOperator (==))
+stepPrim state NotEq = primDyadic state (compareOperator (/=))
+stepPrim state CasePair = primCasePair state
+stepPrim state CaseList = primCaseList state
+stepPrim state Abort = primAbort state
+stepPrim state Print = primPrint state
+stepPrim state Stop = primStop state
 
-primConstr :: TiState -> TiState
-primConstr state =
-  
+compareOperator op (Num n0) (Num n1) = if op n0 n1 then Data trueTag [] else Data falseTag []
+
+primConstr :: TiState -> Int -> Int -> TiState
+primConstr state@(output, stack, dump, heap, globals, stats) tag arity =
+  if length argAddrs == arity
+    then (output, newStack, dump, heapUpdate heap (head newStack) (Data tag argAddrs), globals, stats)
+    else error "argAddrs is not match with arity"
+  where
+    argAddrs = getArgs heap stack
+    newStack = drop (length argAddrs) stack
+primIf :: TiState -> TiState
+trueTag :: Int
+trueTag = 2
+falseTag :: Int
+falseTag = 1
+-- trueTag = 2, falseTag = 1
+primIf state@(output, stack@[a, a1, a2, a3], dump, heap, globals, stats) =
+  if isDataNode condObj
+    then let (Data tag _) = condObj in
+      case tag of
+      2 -> let (Application _ trueBranch) = heapLookup heap a2 -- why use IndirectNode here
+        in (output, [a3], dump, heapUpdate heap a3 (IndirectNode trueBranch), globals, stats)
+      1 -> let (Application _ falseBranch) = heapLookup heap a3
+        in (output, [a3], dump, heapUpdate heap a3 (IndirectNode falseBranch), globals, stats)
+    else (output, [cond], stack : dump, heap, globals, stats)
+  where
+    args = getArgs heap stack
+    cond = head args
+    condObj = heapLookup heap cond -- 原来这里写 condObj@(Data tag _) 就会解包，即使上面只用了 condObj，毕竟你这里假设了他是个 Data obj 了
+
 primNeg :: TiState -> TiState
-primNeg (stack@[a, a1], dump, heap, globals, stats) = -- stack only contains two items in real world? Yes
+primNeg (output, stack@[a, a1], dump, heap, globals, stats) = -- stack only contains two items in real world? Yes
   if isDataNode (heapLookup heap b)
-    then ([a1], dump, heapUpdate heap a1 (Num (-n)), globals, stats)
-    else ([b], [a1] : dump, heap, globals, stats)
+    then (output, [a1], dump, heapUpdate heap a1 (Num (-n)), globals, stats)
+    else (output, [b], [a1] : dump, heap, globals, stats)
   where
     (Application _ b) = heapLookup heap a1
     (Num n) = heapLookup heap b
-primNeg (stack, _, _, _, _) = error ("wrong arguments for primNeg " ++ show (length stack))
+primNeg (_, stack, _, _, _, _) = error ("wrong arguments for primNeg " ++ show (length stack))
 
 operandAddrOf :: Addr -> TiHeap -> Addr
 operandAddrOf appAddr heap =
   let (Application _ addr) = heapLookup heap appAddr
    in addr
 evalArithNum :: Addr -> TiState -> TiState
-evalArithNum appAddr state@(_, dump, heap, globals, stats) =
-  ([operandAddrOf appAddr heap], dump, heap, globals, stats)
+evalArithNum appAddr state@(output, _, dump, heap, globals, stats) =
+  (output, [operandAddrOf appAddr heap], dump, heap, globals, stats)
 
 -- 如果不想在这个函数一下子完成所有计算，而是将状态变化显化出来、转移出去，就得想办法让它转移出来再回来
 primArith :: TiState -> (Int -> Int -> Int) -> TiState
-primArith state@(stack@[_, a1, a2], dump, heap, globals, stats) op =
+primArith state@(output, stack@[_, a1, a2], dump, heap, globals, stats) op =
   if isOperandDataNode a1
     then if isOperandDataNode a2
-      then ([a2], dump, heapUpdate heap a2 (Num (op (operandDataOf a1) (operandDataOf a2))), globals, stats)
-      else evalArithNum a2 (stack, [a2] : dump, heap, globals, stats)
-    else evalArithNum a1 (stack, [a1, a2] : dump, heap, globals, stats)
+      then (output, [a2], dump, heapUpdate heap a2 (Num (op (operandDataOf a1) (operandDataOf a2))), globals, stats)
+      else evalArithNum a2 (output, stack, [a2] : dump, heap, globals, stats)
+    else evalArithNum a1 (output, stack, [a1, a2] : dump, heap, globals, stats)
   where
     isOperandDataNode appAddr =
       let addr = operandAddrOf appAddr heap
@@ -94,6 +144,71 @@ primArith state@(stack@[_, a1, a2], dump, heap, globals, stats) op =
           (Num n) = heapLookup heap addr
        in n
 
+primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
+primDyadic state@(output, stack@[_, a1, a2], dump, heap, globals, stats) op =
+  if isOperandDataNode a1
+    then if isOperandDataNode a2
+      then (output, [a2], dump, heapUpdate heap a2 (op (operandNodeOf a1) (operandNodeOf a2)), globals, stats)
+      else evalArithNum a2 (output, stack, [a2] : dump, heap, globals, stats)
+    else evalArithNum a1 (output, stack, [a1, a2] : dump, heap, globals, stats)
+  where
+    isOperandDataNode appAddr =
+      let addr = operandAddrOf appAddr heap
+       in isDataNode (heapLookup heap addr)
+    operandNodeOf appAddr =
+      let addr = operandAddrOf appAddr heap
+        in heapLookup heap addr
+
+-- 下面这个应该与 primIf 类似
+primCasePair :: TiState -> TiState
+primCasePair state@(output, stack@[a , a1 , a2], dump, heap, globals, stats) =
+  if isDataNode pairNode
+    then let
+      (Data t coms@[com, com1]) = pairNode -- make sure it's pair
+    in do
+      let (heap1, appAddr) = heapAlloc heap (Application (operandAddrOf a2 heap) com)
+      (output, [a2], dump, heapUpdate heap1 a2 (Application appAddr com1), globals, stats)
+    else (output, [operandAddrOf a1 heap], [a1, a2] : dump, heap, globals, stats)
+    -- 这里 eval 完了可能 operandAddrOf a1 heap 变成了 Indirect，所以 dump 那里要把 a 去掉，让 a1 (Application )的参数触发参数更新，
+    -- 把 Indirect 去掉，不然这个 pairNode 一直都是非 DataNode，无限循环在这里的 else 分支里
+  where
+    pairNode = heapLookup heap (operandAddrOf a1 heap)
+-- 与 primCasePair 类似
+primCaseList :: TiState -> TiState
+primCaseList state@(output, stack@[a, a1, a2, a3], dump, heap, globals, stats) =
+  if isDataNode listNode
+    then case listNode of
+        -- 注意下面是栈变为从 a3 开始、也更新 heap，相当于改变执行流了
+        -- 注意你要用地址的时候，用的是 Application 本身，还是 Application 的第二个参数
+        (Data 1 []) -> (output, [a3], dump, heapUpdate heap a3 (IndirectNode (operandAddrOf a2 heap)), globals, stats)
+        (Data 2 [com, com1]) -> let (heap1, appAddr) = heapAlloc heap (Application (operandAddrOf a3 heap) com)
+          in (output, [a3], dump, heapUpdate heap1 a3 (Application appAddr com1), globals, stats)
+        _ -> error "other not supported type list node"
+    else (output, [operandAddrOf a1 heap], [a1, a2, a3] : dump, heap, globals, stats)
+  where
+    listNode = heapLookup heap (operandAddrOf a1 heap)
+primCaseList state@(output, stack, dump, heap, globals, stats) =
+  error ("arg match issue " ++ show (length stack) ++ display (showStack heap stack) ++ display (showHeap heap))
+
+primAbort :: TiState -> TiState
+primAbort state@(output, stack@[_, a1], dump, heap, globals, stats) =
+  error ("program aborted: " ++ msg)
+  where
+    (String msg) = heapLookup heap (operandAddrOf a1 heap)
+
+primPrint :: TiState -> TiState -- 为什么也要求 dump 为空？
+primPrint (output, stack@[a, a1, a2], [], heap, globals, stats) =
+  if isDataNode node
+    then let (Num n) = node
+    in (append output n, [continuation], [], heap, globals, stats)
+    else (output, [firstArgAddr], [stack], heap, globals, stats)
+  where
+    continuation = operandAddrOf a2 heap
+    firstArgAddr = operandAddrOf a1 heap
+    node = heapLookup heap firstArgAddr
+
+primStop :: TiState -> TiState
+primStop (output, stack, dump, heap, globals, stats) = (output, [], dump, heap, globals, stats)
 
 -- why getArgs do like this? 思考整个 evaluator 的过程。
 -- 懂了，由于压栈和都是单参数函数调用，所以栈上当前函数调用的参数，都在下一个栈项 Application 的第二个参数，即下面的 arg 上
@@ -103,6 +218,7 @@ getArgs heap (sc : stack) = map getArg stack
 
 instantiate :: CoreExpr -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiate (AST.Num n) heap env = heapAlloc heap (Num n)
+instantiate (AST.String s) heap env = heapAlloc heap (String s)
 instantiate (AST.Application e0 e1) heap env = heapAlloc heap2 (Application a0 a1)
   where
     (heap1, a0) = instantiate e0 heap env
@@ -134,6 +250,8 @@ instantiate (AST.Let True defs body) heap env =
     newEnv = zip (map fst defs) addrs ++ env
 instantiate (AST.Case e alts) heap env =
   error "Can't instantiate case expr"
+instantiate (AST.Lambda paras body) heap env =
+  error "Can't instantiate lambda expr"
 
 instantiateAndUpdate :: CoreExpr -> Addr -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateAndUpdate (AST.Application e0 e1) updateAddr heap env =
@@ -141,6 +259,8 @@ instantiateAndUpdate (AST.Application e0 e1) updateAddr heap env =
   where
     (heap1, a0) = instantiate e0 heap env -- why call normal instantiate，因为这个内部的表达式外部不可能共享？内部共享呢？
     (heap2, a1) = instantiate e1 heap1 env
+instantiateAndUpdate (AST.String s) updateAddr heap env =
+  heapUpdate heap updateAddr (String s)
 instantiateAndUpdate (AST.Num n) updateAddr heap env =
   heapUpdate heap updateAddr (Num n)
 instantiateAndUpdate (AST.Var v) updateAddr heap env = -- use Indirect to prevent dumplication eval of the value of var
@@ -169,13 +289,27 @@ instantiateAndUpdate (AST.Let True defs body) updateAddr heap env =
         (heap, env)
         defs
     (newHeap, addr) = instantiate body heap' env'
-
+instantiateAndUpdate (AST.Constructor tag arity) updateAddr heap env =
+  heapUpdate heap updateAddr (Prim "Pack" (Construct tag arity))
 instantiateAndUpdate _ _ _ _ = error "Can't instantiateAndUpdate now"
+showResults :: [TiState] -> String
 showResults states =
-  display (concat [layn (map showState states), showStats (last states)])
+  display (concat [
+    showOutput (last states),
+    layn (map showState states),
+    showStats (last states)
+  ])
 
+showOutput :: TiState -> Sequence
+showOutput state@(output, _, _, _, _, _) =
+  concat [
+    Str "output [",
+    interleave (Str ", ") (map (Str . show) (reverse output)),
+    Str "]",
+    Newline
+  ]
 showStats :: TiState -> Sequence
-showStats (stack, dump, heap, globals, stats) =
+showStats (output, stack, dump, heap, globals, stats) =
   concat [
     Newline, showHeap heap,
     Newline, Str "Total number of steps = ",
@@ -183,7 +317,7 @@ showStats (stack, dump, heap, globals, stats) =
   ]
 
 showState :: TiState -> Sequence
-showState (stack, dump, heap, globals, stats) = showStack heap stack
+showState (output, stack, dump, heap, globals, stats) = showStack heap stack
 
 showStack :: TiHeap -> TiStack -> Sequence
 showStack heap stack =
@@ -231,10 +365,12 @@ showNode (Prim name prim) =
   ]
 showNode (Data tag coms) =
   concat [
-    Str "Data ", Str (show tag), Str "[",
+    Str "Data ", Str (show tag), Str " [",
     interleave (Str ", ") (map showAddr coms),
     Str "]"
   ]
+showNode (String s) =
+  Str "Str " `Append` Str s
 showAddr :: Addr -> Sequence
 showAddr = Str . show
 

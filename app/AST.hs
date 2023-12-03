@@ -17,6 +17,7 @@ type Alter a = (Int, [a], Expr a)
 data Expr a where
   Var :: Name -> Expr a
   Num :: Int -> Expr a
+  String :: String -> Expr a
   Constructor :: Int -> Int -> Expr a
   Application :: (Expr a) -> (Expr a) -> Expr a -- function and arg
   Let :: IsRecursive -> [(a, Expr a)] -> (Expr a) -> Expr a
