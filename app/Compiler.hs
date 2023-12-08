@@ -5,16 +5,21 @@ import Heap
 import Prelude hiding (lookup)
 import Data.List (intercalate)
 
+newtype Stack a = Stack [a] deriving Show
+push :: Stack a -> a -> Stack a
+push (Stack xs) x = Stack (x : xs)
+len (Stack xs) = length xs
+
 type TiState = (TiOutput, TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 type TiOutput = [Int]
 type TiStack = [Addr]
-type TiDump = [TiStack]
+type TiDump = Stack Int
 
 initOutput :: TiOutput
 initOutput = []
 append :: TiOutput -> Int -> TiOutput
 append output s = s : output
-initTiDump = []
+initTiDump = Stack []
 type TiHeap = Heap Node
 data Primitive =
   Neg | Add | Sub | Mul | Div |
