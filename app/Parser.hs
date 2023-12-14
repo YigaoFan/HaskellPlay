@@ -12,7 +12,7 @@ import Text.Read (read)
 import AST (CoreExpr, CoreProgram, CoreSuperCombinator, Expr (Var, Num, String, Application, Constructor, Let, Case, Lambda), makeSuperCombinator, Name, Alter)
 import Lexer (Token, lex)
 import Prelude hiding (exp, Left, Right, lex)
-import Data.List (find, map, isPrefixOf)
+import Data.List (find, map, isPrefixOf, isSuffixOf)
 
 keywords :: [String]
 keywords = ["let", "letrc", "case", "in", "of", "Pack"]
@@ -29,7 +29,7 @@ num :: Parser Int
 num = apply (satisfy (\(c : _) -> isDigit c)) (\s -> read s :: Int)
 
 string :: Parser String
-string = satisfy (isPrefixOf "\"")
+string = apply (satisfy (isPrefixOf "\"")) (removeEscChar . removeHeadTailQuote)
 
 pack :: Parser CoreExpr
 pack = next5 (\_ tag _ arity _ -> Constructor tag arity) (next const (lit "Pack") (lit "{")) num (lit ",") num (lit "}")
@@ -37,13 +37,15 @@ pack = next5 (\_ tag _ arity _ -> Constructor tag arity) (next const (lit "Pack"
 expWithParen :: Parser CoreExpr
 expWithParen = next3 (\_ e _ -> e) (lit "(") exp (lit ")")
 
+removeHeadTailQuote :: String -> String
+removeHeadTailQuote ('"' : s) | "\"" `isSuffixOf` s = init s
+removeHeadTailQuote _ = error "wrong format string"
 removeEscChar :: String -> String
-removeEscChar (c : c1 : s) | c == '\\' && c1 == '\\' = c1 : s
 removeEscChar (c : c1 : s) | c == '\\' = c1 : s
 removeEscChar (c : s) = c : removeEscChar s
 removeEscChar [] = []
 atomicExp :: Parser CoreExpr
-atomicExp = alt [apply var Var, apply num Num, apply string (String . removeEscChar), pack, expWithParen]
+atomicExp = alt [apply var Var, apply num Num, apply string String, pack, expWithParen]
 
 -- 我感觉书上说的这种变换，虽然语义没变，因为 atomic exp 和 exp 互相引用的关系（是基本等同），但是语法变了
 application :: Parser CoreExpr

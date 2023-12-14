@@ -2,7 +2,7 @@ module Lexer (Token, lex) where
 
 import Data.Char (Char, isAlpha, isDigit, isSpace)
 import Data.Foldable (elem)
-import Data.List (dropWhile, takeWhile)
+import Data.List (dropWhile, isSuffixOf, takeWhile)
 import Prelude hiding (lex)
 import Data.Bool (Bool, (||))
 import Data.String (String)
@@ -10,7 +10,6 @@ import GHC.Int (Int)
 import Data.Eq ((==), (/=))
 import GHC.Num ((+))
 import GHC.Base ((&&))
-import Data.List (isSuffixOf)
 
 type Token = (Int, String) -- String in token is never empty
 

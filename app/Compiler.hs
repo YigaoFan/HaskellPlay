@@ -26,6 +26,7 @@ data Primitive =
   Construct Int Int | If | Greater | GreaterEq |
   Less | LessEq | Eq | NotEq | CasePair | CaseList |
   Abort | Stop | Print
+  deriving Show
 data Node = Application Addr Addr
   | SuperCombinator Name [Name] CoreExpr
   | Num Int
@@ -33,6 +34,21 @@ data Node = Application Addr Addr
   | IndirectNode Addr
   | Prim Name Primitive
   | Data Int [Addr]
+  deriving Show
+
+instance Eq Node where
+  (==) (Application a0 a1) (Application a2 a3) = a0 == a2 && a1 == a3
+  (==) (SuperCombinator name0 _ _) (SuperCombinator name1 _ _) = name0 == name1 -- not completely correct
+  (==) (Num n0) (Num n1) = n0 == n1
+  (==) (String s0) (String s1) = s0 == s1
+  (==) (IndirectNode a0) (IndirectNode a1) = a0 == a1
+  (==) (Prim name0 _) (Prim name1 _) = name0 == name1
+  (==) (Data a0 coms0) (Data a1 coms1) = a0 == a1 && coms0 == coms1
+  (==) _ _ = False
+
+-- instance Show Node where
+--   showsPrec :: Int -> Node -> ShowS
+--   showsPrec = _
 isDataNode :: Node -> Bool
 isDataNode (Num _) = True
 isDataNode (Data _ _) = True
