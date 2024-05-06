@@ -41,3 +41,12 @@ makeSuperCombinator n as exp = (n, as, exp)
 
 makeProgram :: [SuperCombinator a] -> Program a
 makeProgram scs = scs
+
+data X_
+data Y_
+data XY a where
+  A :: Int -> XY a
+  B :: Char -> XY a
+  C :: Bool -> XY X_
+type X = XY X_ -- Contains values built with constructors A, B, and C 
+type Y = XY Y_

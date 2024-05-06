@@ -14,6 +14,7 @@ type TiState = (TiOutput, TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 type TiOutput = [Int]
 type TiStack = [Addr]
 type TiDump = Stack Int
+data TiFlag = Running | Terminated
 
 initOutput :: TiOutput
 initOutput = []
@@ -34,6 +35,7 @@ data Node = Application Addr Addr
   | IndirectNode Addr
   | Prim Name Primitive
   | Data Int [Addr]
+  | Marked Node
   deriving Show
 
 instance Eq Node where

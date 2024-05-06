@@ -12,6 +12,9 @@ lookup ((k, v) : xs) k' defaultValue
   | k == k' = v
   | k /= k' = lookup xs k' defaultValue
 
+addrsOf :: Heap a -> [Int]
+addrsOf (_, _, items) = map fst items
+
 initHeap :: Heap a
 initHeap = (0, [1..], [])
 heapLookup :: HasCallStack => Heap a -> Addr -> a
@@ -28,3 +31,9 @@ replaceWhile pred a (x : xs)
 heapUpdate :: Heap a -> Addr -> a -> Heap a
 heapUpdate (size, free, addrObjs) addr a =
   (size, free, replaceWhile ((addr==) . fst) (addr, a) addrObjs)
+
+heapFree :: Heap a -> Addr -> Heap a
+heapFree heap@(size, free, addrObjs) addr =
+  if any ((addr==) . fst) addrObjs
+    then (size - 1, addr : free, filter ((addr/=) . fst) addrObjs)
+    else heap

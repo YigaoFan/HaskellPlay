@@ -6,6 +6,7 @@ import qualified AST (Expr (..))
 import Prelude hiding (lookup, concat)
 import PrettyPrint (display, concat, layn, Sequence (Newline, Str, Indent, Append), interleave, fillSpaceNum)
 import Text.Printf (printf)
+import MarkScanGC (gc)
 
 eval :: TiState -> [TiState]
 eval state = state : remain -- Ex 2.9 由于 Haskell 里惰性求值的存在，所以这样写把 state 隔离到求值 remain 的影响外，不管怎么样，都会有个 state 可以读到
@@ -21,7 +22,7 @@ tiFinal (_, [], Stack [], _, _, _) = True -- for Stop primitive
 tiFinal (_, [], d, _, _, _) = error ("Empty stack! dump size " ++ show (len d))
 tiFinal state = False
 doAdmin :: TiState -> TiState
-doAdmin = applyToStats incTiStatSteps
+doAdmin = gc . applyToStats incTiStatSteps
 step :: TiState -> TiState
 step state@(output, stack, dump, heap, globals, stats) =
   dispatch (heapLookup heap (head stack))
@@ -39,7 +40,7 @@ stepDataNode (o, stack, Stack (oldSize : dump), heap, globals, stats) =
     then error $ printf "stack maybe destroyed due to current stack size(%d) is smaller than old stack size(%d)" size oldSize
     else (o, drop (size - oldSize) stack, Stack dump, heap, globals, stats)
   where size = length stack
-  
+
 stepData :: TiState -> Int -> [Addr] -> TiState
 stepData state tag coms = stepDataNode state
 stepString :: TiState -> String -> TiState
@@ -101,15 +102,15 @@ trueTag = 2
 falseTag :: Int
 falseTag = 1
 -- trueTag = 2, falseTag = 1
-primIf state@(output, stack@(a : a1 : a2 : a3 : as), dump, heap, globals, stats) =
+primIf state@(output, a : remainStack@(a1 : a2 : a3 : as), dump, heap, globals, stats) =
   if isDataNode condObj
     then -- why use IndirectNode here
-      (output, a3 : as, dump, heapUpdate heap a3 (IndirectNode (operandAddrOf 
+      (output, a3 : as, dump, heapUpdate heap a3 (IndirectNode (operandAddrOf
         (case condObj of
           (Data 2 _) -> a2
           (Data 1 _) -> a3)
         heap)), globals, stats)
-    else (output, cond : stack, push dump (length stack), heap, globals, stats)
+    else (output, cond : remainStack, push dump (length remainStack), heap, globals, stats)
   where
     cond = operandAddrOf a1 heap
     condObj = heapLookup heap cond -- 原来这里写 condObj@(Data tag _) 就会解包，即使上面只用了 condObj，毕竟你这里假设了他是个 Data obj 了
@@ -118,10 +119,10 @@ primIf state@(output, stack@(a : a1 : a2 : a3 : as), dump, heap, globals, stats)
 -- 所有类似上面这种的 stack 匹配的都会失败
 -- 凡是涉及栈切换的都要跟着改 dump，一个栈的终点或标志性就是一个数据节点
 primNeg :: TiState -> TiState
-primNeg (output, stack@(a : a1 : as), dump, heap, globals, stats) = -- stack only contains two items in real world? Yes
+primNeg (output, a : remainStack@(a1 : as), dump, heap, globals, stats) = -- stack only contains two items in real world? Yes
   if isDataNode (heapLookup heap b)
-    then (output, a1 : as, dump, heapUpdate heap a1 (Num (-n)), globals, stats)
-    else (output, b : a1 : as, push dump (length stack - 1), heap, globals, stats)
+    then (output, remainStack, dump, heapUpdate heap a1 (Num (-n)), globals, stats)
+    else (output, b : remainStack, push dump (length remainStack), heap, globals, stats)
   where
     b = operandAddrOf a1 heap
     (Num n) = heapLookup heap b
@@ -138,7 +139,7 @@ primArith :: TiState -> (Int -> Int -> Int) -> TiState
 primArith state@(output, stack@(_ : a1 : a2 : as), dump, heap, globals, stats) op =
   if isOperandDataNode a1
     then if isOperandDataNode a2
-      then (output, [a2], dump, heapUpdate heap a2 (Num (op (operandDataOf a1) (operandDataOf a2))), globals, stats)
+      then (output, a2 : as, dump, heapUpdate heap a2 (Num (op (operandDataOf a1) (operandDataOf a2))), globals, stats)
       else (output, operandAddrOf a2 heap : a2 : as, push dump (length stack - 2), heap, globals, stats)
     else (output, operandAddrOf a1 heap : a1 : a2 : as, push dump (length stack - 1), heap, globals, stats)
   where
@@ -154,7 +155,7 @@ primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
 primDyadic state@(output, stack@(_ : a1 : a2 : as), dump, heap, globals, stats) op =
   if isOperandDataNode a1
     then if isOperandDataNode a2
-      then (output, [a2], dump, heapUpdate heap a2 (op (operandNodeOf a1) (operandNodeOf a2)), globals, stats)
+      then (output, a2 : as, dump, heapUpdate heap a2 (op (operandNodeOf a1) (operandNodeOf a2)), globals, stats)
       else (output, operandAddrOf a2 heap : a2 : as, push dump (length stack - 2), heap, globals, stats)
     else (output, operandAddrOf a1 heap : a1 : a2 :as, push dump (length stack - 1), heap, globals, stats)
   where
@@ -173,7 +174,7 @@ primCasePair state@(output, stack@(a : a1 : a2 : as), dump, heap, globals, stats
       (Data t coms@[com, com1]) = pairNode -- make sure it's pair
     in do
       let (heap1, appAddr) = heapAlloc heap (Application (operandAddrOf a2 heap) com)
-      (output, [a2], dump, heapUpdate heap1 a2 (Application appAddr com1), globals, stats)
+      (output, a2 : as, dump, heapUpdate heap1 a2 (Application appAddr com1), globals, stats)
     else (output, operandAddrOf a1 heap : a1 : a2 : as, push dump (length stack - 1), heap, globals, stats)
     -- 这里 eval 完了可能 operandAddrOf a1 heap 变成了 Indirect，所以 dump 那里要把 a 去掉，让 a1 (Application )的参数触发参数更新，
     -- 把 Indirect 去掉，不然这个 pairNode 一直都是非 DataNode，无限循环在这里的 else 分支里
@@ -188,7 +189,7 @@ primCaseList state@(output, stack@(a : a1 : a2 : a3 : as), dump, heap, globals, 
         -- 注意你要用地址的时候，用的是 Application 本身，还是 Application 的第二个参数
         (Data 1 []) -> (output, [a3], dump, heapUpdate heap a3 (IndirectNode (operandAddrOf a2 heap)), globals, stats)
         (Data 2 [com, com1]) -> let (heap1, appAddr) = heapAlloc heap (Application (operandAddrOf a3 heap) com)
-          in (output, [a3], dump, heapUpdate heap1 a3 (Application appAddr com1), globals, stats)
+          in (output, a3 : as, dump, heapUpdate heap1 a3 (Application appAddr com1), globals, stats)
         _ -> error "other not supported type list node"
     else (output, operandAddrOf a1 heap : a1 : a2 : a3 : as, push dump (length stack - 1), heap, globals, stats)
   where
@@ -206,7 +207,7 @@ primPrint :: TiState -> TiState -- 为什么也要求 dump 为空？我猜是因
 primPrint (output, stack@(a : a1 : a2 : as), dump@(Stack []), heap, globals, stats) =
   if isDataNode node
     then let (Num n) = node
-    in (append output n, [continuation], Stack [], heap, globals, stats)
+    in (append output n, continuation : as, Stack [], heap, globals, stats)
     else (output, firstArgAddr : a1 : a2 : as, push dump (length stack - 1), heap, globals, stats)
   where
     continuation = operandAddrOf a2 heap

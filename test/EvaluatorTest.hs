@@ -87,7 +87,7 @@ src14 =
   \main = returnList;"
 
 testEvaluator0 = TestCase (assertEqual "list func" (Num 2) (do 
-  let (a, h) = exe src12
+  let (a, h) = exe src14
   heapLookup h a
   ))
 
