@@ -35,8 +35,9 @@ data Node = Application Addr Addr
   | IndirectNode Addr
   | Prim Name Primitive
   | Data Int [Addr]
-  | Marked Node
+  | Marked MarkState Node
   deriving Show
+data MarkState = Done | Visits Int [Addr] (Maybe Addr) deriving Show --[Addr] is Marking related addr
 
 instance Eq Node where
   (==) (Application a0 a1) (Application a2 a3) = a0 == a2 && a1 == a3
