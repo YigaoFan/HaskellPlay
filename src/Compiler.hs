@@ -36,6 +36,7 @@ data Node = Application Addr Addr
   | Prim Name Primitive
   | Data Int [Addr]
   | Marked MarkState Node
+  | Forward Addr
   deriving Show
 data MarkState = Done | Visits Int [Addr] (Maybe Addr) deriving Show --[Addr] is Marking related addr
 
