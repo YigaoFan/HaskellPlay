@@ -17,12 +17,26 @@ findNodeAddrsInGlobals :: TiGlobals -> TiHeap -> [Addr]
 findNodeAddrsInGlobals [] heap = []
 findNodeAddrsInGlobals ((_ , a) : xs) heap = a : findNodeAddrsInGlobals xs heap
 -- 这个函数式我怎么修改原来的 heap 呢？还有是不是要递归 copy 下去？
+evacuate :: TiHeap -> TiHeap -> Addr -> (TiHeap, TiHeap, Addr)
+evacuate fromHeap toHeap addr =
+  let node = heapLookup fromHeap addr in
+  case node of
+    Forward a -> (fromHeap, toHeap, a)
+    Application a1 a2 -> handle addr node fromHeap toHeap
+    IndirectNode a -> evacuate fromHeap toHeap a
+    Data _ addrs -> foldr (\a (f, t, newAddrs) -> let (newF, newT, a) = handle a node f t in (newF, newT, a : newAddrs)) (fromHeap, toHeap, []) addrs
+  where
+    handle a node from to = do
+      let (newH, newA) = heapAlloc to node
+      (newH, heapUpdate from a (Forward newA), newA)
+      
+
 evacuateStack :: TiHeap -> TiHeap -> TiStack -> (TiHeap, TiHeap, TiStack)
 evacuateStack fromHeap toHeap =
   foldr (\a (fromHeap', toHeap', s) ->
-    case heapLookup fromHeap' a of --recursive allocate?
+    case heapLookup fromHeap' a of
       Forward addr -> (fromHeap', toHeap', addr : s)
-      node -> let (newH, newA) = heapAlloc toHeap' node in 
+      node -> let (newH, newA) = heapAlloc toHeap' node in --recursive allocate?
         (newH, heapUpdate fromHeap' a (Forward newA), newA : s))
     (fromHeap, toHeap, [])
 evacuateDump :: TiHeap -> TiHeap -> TiDump -> (TiHeap, TiDump)
