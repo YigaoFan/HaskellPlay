@@ -22,11 +22,14 @@ evacuate fromHeap toHeap addr =
   let node = heapLookup fromHeap addr in
   case node of
     Forward a -> (fromHeap, toHeap, a)
-    Application a1 a2 -> handle addr node fromHeap toHeap
+    Application a1 a2 -> copyThenMark addr node fromHeap toHeap
     IndirectNode a -> evacuate fromHeap toHeap a
-    Data _ addrs -> foldr (\a (f, t, newAddrs) -> let (newF, newT, a) = handle a node f t in (newF, newT, a : newAddrs)) (fromHeap, toHeap, []) addrs
+    Data _ addrs -> do
+      let (from', to', addr') = copyThenMark addr node fromHeap toHeap
+      let (from'', to'') = foldr (\a (f, t) -> let (newF, newT, _) = evacuate f t a in (newF, newT)) (from', to') addrs
+      (from'', to'', addr')
   where
-    handle a node from to = do
+    copyThenMark a node from to = do
       let (newH, newA) = heapAlloc to node
       (newH, heapUpdate from a (Forward newA), newA)
       
