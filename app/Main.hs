@@ -9,7 +9,7 @@ import Prelude hiding (print, lex)
 import Lexer (lex)
 import Parser (syntax, allSyntax)
 import Prelude (print)
-import Program (run)
+import TemplateInstantiation.Program (run)
 
 -- let scs = syntax $ lex
 --           "f = 3;\n\

@@ -1,12 +1,13 @@
-module Evaluator where
-import Compiler (TiState, isDataNode, applyToStats, incTiStatSteps, Node(..), TiStack, TiGlobals, TiHeap, Assoc, getTiStatSteps, Primitive (..), append, Stack (Stack), push, len)
+module TemplateInstantiation.Evaluator where
+import TemplateInstantiation.Compiler (Assoc, Node (..), Primitive (..), Stack (Stack), TiGlobals, TiHeap, TiStack, TiState, append, applyToStats, getTiStatSteps, incTiStatSteps, isDataNode, len, push)
 import Heap (Addr, heapAlloc, heapLookup, lookup, heapUpdate)
 import AST (CoreExpr, Name, SuperCombinator, nonRecursive, recursive, Alter)
 import qualified AST (Expr (..))
 import Prelude hiding (lookup, concat)
 import PrettyPrint (display, concat, layn, Sequence (Newline, Str, Indent, Append), interleave, fillSpaceNum)
 import Text.Printf (printf)
-import MarkScanGC (gc)
+import qualified TemplateInstantiation.MarkScanGC as MarkScanGC (gc)
+import qualified TemplateInstantiation.TwoSpaceGC as TwoSpaceGC (gc)
 
 eval :: TiState -> [TiState]
 eval state = state : remain -- Ex 2.9 由于 Haskell 里惰性求值的存在，所以这样写把 state 隔离到求值 remain 的影响外，不管怎么样，都会有个 state 可以读到
@@ -22,7 +23,7 @@ tiFinal (_, [], Stack [], _, _, _) = True -- for Stop primitive
 tiFinal (_, [], d, _, _, _) = error ("Empty stack! dump size " ++ show (len d))
 tiFinal state = False
 doAdmin :: TiState -> TiState
-doAdmin = gc . applyToStats incTiStatSteps
+doAdmin = TwoSpaceGC.gc . applyToStats incTiStatSteps
 step :: TiState -> TiState
 step state@(output, stack, dump, heap, globals, stats) =
   dispatch (heapLookup heap (head stack))

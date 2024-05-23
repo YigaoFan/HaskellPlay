@@ -1,6 +1,6 @@
-module MarkScanGC where
+module TemplateInstantiation.MarkScanGC where
 import Heap (Addr, heapUpdate, heapLookup, addrsOf, heapFree)
-import Compiler (MarkState (Done, Visits), Node (Application, Data, IndirectNode, Marked, Prim, SuperCombinator, Num, String), TiDump, TiGlobals, TiHeap, TiStack, TiState)
+import TemplateInstantiation.Compiler (MarkState (Done, Visits), Node (Application, Data, IndirectNode, Marked, Num, Prim, String, SuperCombinator), TiDump, TiGlobals, TiHeap, TiStack, TiState)
 import Debug.Trace (trace)
 import Data.Maybe (Maybe)
 import GHC.Stack (HasCallStack)

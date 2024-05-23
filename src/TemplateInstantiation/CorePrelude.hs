@@ -1,4 +1,4 @@
-module CorePrelude where
+module TemplateInstantiation.CorePrelude where
 
 import AST (CoreProgram, Expr(..))
 import Parser (parse)

@@ -1,8 +1,8 @@
-module Program where
+module TemplateInstantiation.Program where
 
 import Parser (parse)
-import Compiler (compile, TiState, TiHeap)
-import Evaluator (showResults, eval)
+import TemplateInstantiation.Compiler (TiHeap, TiState, compile)
+import TemplateInstantiation.Evaluator (eval, showResults)
 import Heap (Addr)
 run = showResults . eval . compile . parse
 

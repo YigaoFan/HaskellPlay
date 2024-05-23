@@ -1,6 +1,6 @@
-module Compiler where
+module TemplateInstantiation.Compiler where
 import AST (CoreExpr, CoreSuperCombinator, Name)
-import CorePrelude (defs, extraDefs)
+import TemplateInstantiation.CorePrelude (defs, extraDefs)
 import Heap
 import Prelude hiding (lookup)
 import Data.List (intercalate)

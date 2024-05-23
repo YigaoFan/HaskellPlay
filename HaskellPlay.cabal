@@ -28,13 +28,17 @@ library HaskellPlayLib
         Parser
         AST
         PrettyPrint
-        CorePrelude
-        Compiler
-        Evaluator
-        Program
         Heap
-        MarkScanGC
-        TwoSpaceGC
+        TemplateInstantiation.CorePrelude
+        TemplateInstantiation.Compiler
+        TemplateInstantiation.Evaluator
+        TemplateInstantiation.Program
+        TemplateInstantiation.MarkScanGC
+        TemplateInstantiation.TwoSpaceGC
+        GMachine.Program
+        GMachine.Evaluator
+        GMachine.Util
+        GMachine.Compiler
 
     default-language: Haskell2010
     build-depends:    base, template-haskell
