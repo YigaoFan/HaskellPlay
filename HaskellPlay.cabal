@@ -29,7 +29,7 @@ library HaskellPlayLib
         AST
         PrettyPrint
         Heap
-        TemplateInstantiation.CorePrelude
+        CorePrelude
         TemplateInstantiation.Compiler
         TemplateInstantiation.Evaluator
         TemplateInstantiation.Program

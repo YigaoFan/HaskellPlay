@@ -7,6 +7,11 @@ type GmCode = [Instruction]
 type GmHeap = Heap Node
 type GmGlobals = [(Name, Addr)]
 type GmStats = Int
+type GmEnvironment = [(Name, Int)]
+
+domain :: [(a, b)] -> [a]
+domain list = [key | (key, _) <- list]
+
 initialStat :: GmStats
 initialStat = 0
 incStatSteps s = s + 1
