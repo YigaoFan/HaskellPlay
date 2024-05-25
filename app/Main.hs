@@ -9,7 +9,8 @@ import Prelude hiding (print, lex)
 import Lexer (lex)
 import Parser (syntax, allSyntax)
 import Prelude (print)
-import TemplateInstantiation.Program (run)
+-- import TemplateInstantiation.Program (run)
+import GMachine.Program (run)
 
 -- let scs = syntax $ lex
 --           "f = 3;\n\
@@ -98,9 +99,9 @@ src14 =
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src14
+  let r = run "S f g x = f x (g x);"
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
-  putStr r
+  putStr $ show r
 
 -- difference between putStr and print
 

@@ -12,6 +12,7 @@ import GHC.Base (Int, map, (++))
 import GHC.List (take)
 import GHC.Show (Show (show), showSpace)
 import Prelude hiding(concat, print, (.))
+import Heap (Addr)
 
 class PrettyPrinted a where
   print :: a -> Int -> Sequence
@@ -126,3 +127,6 @@ flatten col ((Indent s, indent) : seqs) = flatten col ((s, 2) : seqs)
 -- 耗时等比于 s 的长度
 display :: Sequence -> String
 display s = flatten 0 [(s, 0)]
+
+showAddr :: Addr -> Sequence
+showAddr = Str . show

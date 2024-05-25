@@ -40,6 +40,7 @@ data Instruction =
   Unwind | PushGlobal Name |
   PushInt Int | Push Int |
   MakeApplication | Slide Int
+  deriving Show
 
 instance Eq Instruction where
   Unwind == Unwind = True

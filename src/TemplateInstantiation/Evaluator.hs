@@ -4,7 +4,7 @@ import Heap (Addr, heapAlloc, heapLookup, lookup, heapUpdate)
 import AST (CoreExpr, Name, SuperCombinator, nonRecursive, recursive, Alter)
 import qualified AST (Expr (..))
 import Prelude hiding (lookup, concat)
-import PrettyPrint (display, concat, layn, Sequence (Newline, Str, Indent, Append), interleave, fillSpaceNum)
+import PrettyPrint (display, concat, layn, Sequence (Newline, Str, Indent, Append), interleave, fillSpaceNum, showAddr)
 import Text.Printf (printf)
 import qualified TemplateInstantiation.MarkScanGC as MarkScanGC (gc)
 import qualified TemplateInstantiation.TwoSpaceGC as TwoSpaceGC (gc)
@@ -379,8 +379,6 @@ showNode (Data tag coms) =
   ]
 showNode (String s) =
   Str "Str " `Append` Str s
-showAddr :: Addr -> Sequence
-showAddr = Str . show
 
 showHeap :: TiHeap -> Sequence
 showHeap (size, free, addrObjs) =
