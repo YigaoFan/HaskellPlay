@@ -3,6 +3,7 @@ import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap), set
 import AST (Name)
 import Heap (lookup, heapAlloc, heapLookup, Addr)
 import Prelude hiding (lookup)
+import Data.Foldable (find)
 
 eval :: GmState -> [GmState]
 eval state = state : remain
@@ -37,9 +38,15 @@ pushGlobal f state =
   where a = lookup (globals state) f (error ("Undeclared global " ++ f))
 
 pushInt :: Int -> GmState -> GmState
-pushInt n state =
-  setHeap heap' (setStack (a : stack state) state)
-  where (heap', a) = heapAlloc (heap state) (Num n)
+pushInt n state = do
+  let numName = show n
+  case find (\(n, a) -> n == numName) (globals state) of
+    Just (n, a) -> setStack (a : stack state) state
+    Nothing ->
+      setGlobals ((numName, a) : globals state)
+        (setStack (a : stack state) 
+          (setHeap heap' state))
+    where (heap', a) = heapAlloc (heap state) (Num n)
 
 makeApplication :: GmState -> GmState
 makeApplication state =
@@ -68,7 +75,7 @@ unwind state = newState (heapLookup (heap state) a) state
   where (a : _) = stack state
 
 newState :: Node -> GmState -> GmState
-newState (Global n code) state 
+newState (Global n code) state
   | length (stack state) < n = error "Unwinding with too few arguments"
   | otherwise = setCode code state
 newState (Num n) state = state

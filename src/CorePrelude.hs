@@ -8,8 +8,8 @@ defs :: CoreProgram
 defs 
   = [
     ("id", ["x"], Var "x"),
-    ("left", ["x", "y"], Var "x"),
-    ("right", ["x", "y"], Var "y"),
+    ("left", ["x", "y"], Var "x"), -- K
+    ("right", ["x", "y"], Var "y"), -- K1
     ("s", ["f", "g", "x"], Application (Application (Var "f") (Var "x"))
                                        (Application (Var "g") (Var "x"))),
     ("compose", ["f", "g", "x"], Application (Var "f") (Application (Var "g") (Var "x"))),

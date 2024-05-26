@@ -4,6 +4,7 @@ import GMachine.Util (GmState (GmState), GmCode, Instruction (PushGlobal, Unwind
 import Heap (initHeap, Addr, heapAlloc, lookup)
 import Data.List (mapAccumL)
 import Prelude hiding (lookup)
+import CorePrelude (defs, extraDefs)
 
 initialCode :: GmCode
 initialCode = [PushGlobal "main", Unwind]
@@ -13,7 +14,7 @@ compile program = GmState initialCode [] heap globals initialStat
   where (heap, globals) = buildInitHeap program
 
 buildInitHeap :: CoreProgram -> (GmHeap, GmGlobals)
-buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator program)
+buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator (defs ++ program))
 
 type GmCompiledSuperCombinator = (Name, Int, GmCode)
 allocSuperCombinator :: GmHeap -> GmCompiledSuperCombinator -> (GmHeap, (Name, Addr))
