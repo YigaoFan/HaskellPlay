@@ -1,18 +1,19 @@
 module GMachine.Printer where
-import GMachine.Util (GmState (heap, globals, stats, stack), Instruction (Unwind, PushGlobal, Push, PushInt, MakeApplication, Slide), Node (Global, Num, Application), GmCode, getStatSteps)
-import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent), interleave, num, showAddr, layn)
+import GMachine.Util (GmState (heap, globals, stats, stack, code), Instruction (Unwind, PushGlobal, Push, PushInt, MakeApplication, Slide), Node (Global, Num, Application), GmCode, getStatSteps)
+import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn)
 import Prelude hiding (concat)
 import Heap (Addr, heapLookup)
 import AST (Name)
+
+-- 显示的函数不要管两头的换行，只管内部的换行
 
 showResults :: [GmState] -> [Char]
 showResults states@(s : remain) =
   display (concat [
     str "SuperCombinator definitions", Newline,
-    interleave Newline (map (showSuperCombinator s) (globals s)),
-    Newline, Newline, str "State transitions", Newline, Newline,
-    layn (map showState states),
-    Newline, Newline,
+    interleave Newline (map (showSuperCombinator s) (globals s)), Newline, Newline,
+    str "State transitions", Newline,
+    layn (map showState states), Newline,
     showStats (last states)
   ])
 
@@ -20,16 +21,16 @@ showSuperCombinator :: GmState -> (Name, Addr) -> Sequence
 showSuperCombinator s (name, addr) =
   concat [
     str "Code for ", str name, Newline,
-    showInstructions code, Newline, Newline
+    showInstructions code
   ]
   where (Global _ code) = heapLookup (heap s) addr
 
 showInstructions :: GmCode -> Sequence
 showInstructions code =
   concat [
-    str "   Code:{", Newline,
-    Indent (interleave Newline (map showInstruction code)),
-    str "}", Newline
+    str "Code:{", Newline,
+    Indent (appendNewLineIfNotNull (map showInstruction code)),
+    str "}"
   ]
 
 showInstruction :: Instruction -> Sequence
@@ -42,13 +43,16 @@ showInstruction (Slide n) = Append (str "Slide ") (num n)
 
 showState :: GmState -> Sequence
 showState state =
-  concat []
+  concat [
+    showStack state, Newline,
+    showInstructions (code state)
+  ]
 
 showStack :: GmState -> Sequence
 showStack state =
   concat [
-    str "Stack:[",
-    Indent (interleave Newline (map (showStackItem state) (reverse (stack state)))),
+    str "Stack:[", Newline,
+    Indent (appendNewLineIfNotNull (map (showStackItem state) (reverse (stack state)))),
     str "]"
   ]
 showStackItem :: GmState -> Addr -> Sequence
@@ -64,3 +68,10 @@ showNode state addr (Application a1 a2) =
 showStats :: GmState -> Sequence
 showStats state =
   concat [str "Steps taken = ", num (getStatSteps (stats state))]
+
+appendNewLineIfNotNull :: [Sequence] -> Sequence
+appendNewLineIfNotNull lines =
+      Append (interleave Newline lines)
+        (if not (null lines)
+          then Newline
+          else Nil)

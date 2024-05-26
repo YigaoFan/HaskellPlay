@@ -38,17 +38,17 @@ instance Show a => PrettyPrinted (Expr a) where
     addParenIfNeed precedence 3 (concat [print e0 3, Str " < ", print e1 3])
   print (Application (Application (Var "<=") e0) e1) precedence =
     addParenIfNeed precedence 3 (concat [print e0 3, Str " <= ", print e1 3])
-  print (Application (Application (Var "-") e0) e1) precedence = 
+  print (Application (Application (Var "-") e0) e1) precedence =
     addParenIfNeed precedence 4 (concat [print e0 4, Str " - ", print e1 4])
-  print (Application (Application (Var "+") e0) e1) precedence = 
+  print (Application (Application (Var "+") e0) e1) precedence =
      addParenIfNeed precedence 4 (concat [print e0 4, Str " + ", print e1 4])
-  print (Application (Application (Var "*") e0) e1) precedence = 
+  print (Application (Application (Var "*") e0) e1) precedence =
     addParenIfNeed precedence 5 (concat [print e0 5, Str " * ", print e1 5])
-  print (Application (Application (Var "/") e0) e1) precedence = 
+  print (Application (Application (Var "/") e0) e1) precedence =
     addParenIfNeed precedence 5 (concat [print e0 5, Str " / ", print e1 5])
   print (Application e0 e1) precedence = addParenIfNeed precedence 6 (concat [print e0 6, Str " ", print e1 6])
   print (Constructor tag arity) precedence = addParenIfNeed precedence 6 (concat [Str "Pack{", Str (show tag), Str ", ", Str (show arity), Str "}"])
-  
+
   -- 下面这几个组合起来，优先级的事情怎么弄 mark it to 0 to expect inner to add paren
   print (Let isRecursive defs e) precedence =
     addParenIfNeed precedence 0 (
@@ -63,7 +63,7 @@ printDefs = interleave (Str "; ") . map (\(a, e) -> concat [Str (show a), Str " 
 addParenIfNeed :: Int -> Int -> Sequence -> Sequence
 addParenIfNeed outPrecedence currentPrecedence seq =
   -- 更细致点的话，左边的优先级也比右边优先级高，比如 1 - 2 + 3 和 1 - 2 + (1 - 2)，这里是怎么组成 AST 的？这里的代码就会给第一个的左边减法加上括号，其实不需要
-  if currentPrecedence > outPrecedence 
+  if currentPrecedence > outPrecedence
     then seq
     else concat [Str "(", seq, Str ")"]
 
@@ -95,6 +95,8 @@ str :: String -> Sequence
 str = replace '\n' Newline
 concat :: [Sequence] -> Sequence
 concat = foldl Append Nil
+-- | >>> interleave sep [a, b]
+-- a sep b
 interleave :: Sequence -> [Sequence] -> Sequence
 interleave sep =
   foldl (\b s ->
@@ -112,21 +114,24 @@ fillSpaceNum width n =
   Str (space (width - length digits) ++ digits)
   where
     digits = show n
-  
-layn :: [Sequence] -> Sequence
-layn seqs = concat (map (\(n, seq) -> concat [fillSpaceNum 4 n, Str ")", Indent seq, Newline]) (zip [1..] seqs))
 
-flatten :: Int -> [(Sequence, Int)] -> String
-flatten _ [] = ""
-flatten col ((Nil, indent) : seqs) = flatten col seqs
-flatten col ((Str s, indent) : seqs) = space indent ++ s ++ flatten (col+indent+length s) seqs
-flatten col ((Append s0 s1, indent) : seqs) = flatten col ((s0, indent) : (s1, 0) : seqs)
-flatten col ((Newline, indent) : seqs) = '\n' : space indent ++ flatten indent seqs
-flatten col ((Indent s, indent) : seqs) = flatten col ((s, 2) : seqs)
+layn :: [Sequence] -> Sequence
+layn seqs = Indent (interleave Newline (zipWith (\n seq -> concat [num n, Str ")", seq]) [1 ..] seqs))
+
+flatten :: Int -> Bool -> [Sequence] -> String
+flatten _ _ [] = ""
+flatten col isNewLine (Nil : seqs) = flatten col isNewLine seqs
+flatten col isNewLine (Str s : seqs) =
+  (if isNewLine then space col else space 0)
+  ++ s ++ flatten col False seqs
+flatten col isNewLine (Append s0 s1 : seqs) = flatten col isNewLine (s0 : s1 : seqs)
+flatten col _         (Newline : seqs) = '\n' : flatten col True seqs
+flatten col isNewLine (Indent s : seqs) =
+  flatten (col + 2) isNewLine [s] ++ flatten col True seqs -- 因为 s 和 seqs 的缩进都不一样，我们可以假定这是两个行，因此传 True
 
 -- 耗时等比于 s 的长度
 display :: Sequence -> String
-display s = flatten 0 [(s, 0)]
+display s = flatten 0 True [s]
 
 showAddr :: Addr -> Sequence
 showAddr = Str . show
