@@ -1,5 +1,5 @@
 module GMachine.Printer where
-import GMachine.Util (GmState (heap, globals, stats, stack, code), Instruction (Unwind, PushGlobal, Push, PushInt, MakeApplication, Slide), Node (Global, Num, Application), GmCode, getStatSteps)
+import GMachine.Util (GmState (heap, globals, stats, stack, code), Instruction (Unwind, PushGlobal, Push, PushInt, MakeApplication, Update, Pop), Node (Global, Num, Application, Indirect), GmCode, getStatSteps)
 import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn)
 import Prelude hiding (concat)
 import Heap (Addr, heapLookup)
@@ -39,7 +39,8 @@ showInstruction (PushGlobal f) = Append (str "PushGlobal ") (str f)
 showInstruction (Push n) = Append (str "Push ") (num n)
 showInstruction (PushInt n) = Append (str "PushInt ") (num n)
 showInstruction MakeApplication = str "MakeApplication"
-showInstruction (Slide n) = Append (str "Slide ") (num n)
+showInstruction (Update a) = Append (str "Update ") (num a)
+showInstruction (Pop a) = Append (str "Pop ") (num a)
 
 showState :: GmState -> Sequence
 showState state =
@@ -64,6 +65,7 @@ showNode state addr (Global n g) = concat [str "Global ", str v]
   where v = head [n | (n, a) <- globals state, addr == a]
 showNode state addr (Application a1 a2) =
   concat [str "Application ", showAddr a1, str " ", showAddr a2]
+showNode state addr (Indirect a) = concat [str "Indirect ", num a]
 
 showStats :: GmState -> Sequence
 showStats state =

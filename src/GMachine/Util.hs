@@ -39,7 +39,8 @@ setStats sts s = s {stats = sts}
 data Instruction =
   Unwind | PushGlobal Name |
   PushInt Int | Push Int |
-  MakeApplication | Slide Int
+  MakeApplication | Update Int |
+  Pop Int
   deriving Show
 
 instance Eq Instruction where
@@ -48,10 +49,11 @@ instance Eq Instruction where
   PushInt a == PushInt b = a == b
   Push a == Push b = a == b
   MakeApplication == MakeApplication = True
-  Slide a == Slide b = a == b
+  Update a == Update b = a == b
   _ == _ = False
 
 data Node = Num Int
   | Application Addr Addr
   | Global Int GmCode
+  | Indirect Addr
 

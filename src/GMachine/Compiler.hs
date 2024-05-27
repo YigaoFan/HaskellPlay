@@ -1,6 +1,6 @@
 module GMachine.Compiler where
 import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (Var, Num, Application))
-import GMachine.Util (GmState (GmState), GmCode, Instruction (PushGlobal, Unwind, Slide, Push, PushInt, MakeApplication), initialStat, GmHeap, GmGlobals, Node (Global), GmEnvironment, domain)
+import GMachine.Util (GmState (GmState), GmCode, Instruction (PushGlobal, Unwind, Push, PushInt, MakeApplication, Update, Pop), initialStat, GmHeap, GmGlobals, Node (Global), GmEnvironment, domain)
 import Heap (initHeap, Addr, heapAlloc, lookup)
 import Data.List (mapAccumL)
 import Prelude hiding (lookup)
@@ -27,7 +27,7 @@ compileSuperCombinator (name, paraNames, body) =
   (name, length paraNames, compileR body (zip paraNames [0..]))
 
 compileR :: CoreExpr -> GmEnvironment -> GmCode
-compileR exp env = compileC exp env ++ [Slide (length env + 1), Unwind]
+compileR exp env = compileC exp env ++ [Update (length env), Pop (length env), Unwind]
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(name, offset + n) | (name, offset) <- env]

@@ -1,9 +1,11 @@
 module GMachine.Evaluator where
-import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap), setStats, incStatSteps, setCode, Instruction (PushGlobal, PushInt, MakeApplication, Slide, Push, Unwind), setStack, setHeap, setGlobals)
+import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap), setStats, incStatSteps, setCode, Instruction (PushGlobal, PushInt, MakeApplication, Push, Unwind, Pop, Update), setStack, setHeap, setGlobals)
 import AST (Name)
-import Heap (lookup, heapAlloc, heapLookup, Addr)
+import Heap (lookup, heapAlloc, heapLookup, Addr, heapUpdate)
 import Prelude hiding (lookup)
 import Data.Foldable (find)
+import Debug.Trace (trace)
+import Text.Printf (printf)
 
 eval :: GmState -> [GmState]
 eval state = state : remain
@@ -29,7 +31,8 @@ dispatch (PushGlobal f) = pushGlobal f
 dispatch (PushInt n) = pushInt n
 dispatch MakeApplication = makeApplication
 dispatch (Push n) = push n
-dispatch (Slide n) = slide n
+dispatch (Pop n) = pop n
+dispatch (Update n) = update n
 dispatch Unwind = unwind
 
 pushGlobal :: Name -> GmState -> GmState
@@ -65,14 +68,23 @@ push n state =
 getArg :: Node -> Addr
 getArg (Application a1 a2) = a2
 
-slide :: Int -> GmState -> GmState
-slide n state =
-  setStack (a : drop n as) state
-  where (a : as) = stack state
+pop :: Int -> GmState -> GmState
+pop n state =
+  setStack (drop n (stack state)) state
+
+update :: Int -> GmState -> GmState
+update n state = do
+  let (a : as) = stack state
+  let h = trace (printf "as size: %d, n: %d" (length as) n) heapUpdate (heap state) (as !! n) (Indirect a)
+  setStack as (setHeap h state)
 
 unwind :: GmState -> GmState
-unwind state = newState (heapLookup (heap state) a) state
-  where (a : _) = stack state
+unwind state = 
+  let node = heapLookup (heap state) a in
+  case node of
+    Indirect addr -> setStack (addr : as) state
+    _ -> newState node state
+  where (a : as) = stack state
 
 newState :: Node -> GmState -> GmState
 newState (Global n code) state
