@@ -1,5 +1,5 @@
 module GMachine.Printer where
-import GMachine.Util (GmState (heap, globals, stats, stack, code), Instruction (Unwind, PushGlobal, Push, PushInt, MakeApplication, Update, Pop), Node (Global, Num, Application, Indirect), GmCode, getStatSteps)
+import GMachine.Util (GmState (heap, globals, stats, stack, code), Instruction (Unwind, PushGlobal, Push, PushInt, MakeApplication, Update, Pop, Slide, Alloc), Node (Global, Num, Application, Indirect), GmCode, getStatSteps)
 import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn)
 import Prelude hiding (concat)
 import Heap (Addr, heapLookup)
@@ -41,6 +41,8 @@ showInstruction (PushInt n) = Append (str "PushInt ") (num n)
 showInstruction MakeApplication = str "MakeApplication"
 showInstruction (Update a) = Append (str "Update ") (num a)
 showInstruction (Pop a) = Append (str "Pop ") (num a)
+showInstruction (Slide a) = Append (str "Slide ") (num a)
+showInstruction (Alloc a) = Append (str "Alloc ") (num a)
 
 showState :: GmState -> Sequence
 showState state =

@@ -34,13 +34,13 @@ setHeap h s = s { heap = h }
 setGlobals :: GmGlobals -> GmState -> GmState
 setGlobals g s = s { globals = g }
 setStats :: GmStats -> GmState -> GmState
-setStats sts s = s {stats = sts}
+setStats sts s = s { stats = sts }
 
 data Instruction =
   Unwind | PushGlobal Name |
   PushInt Int | Push Int |
   MakeApplication | Update Int |
-  Pop Int
+  Pop Int | Alloc Int | Slide Int
   deriving Show
 
 instance Eq Instruction where
@@ -56,4 +56,5 @@ data Node = Num Int
   | Application Addr Addr
   | Global Int GmCode
   | Indirect Addr
+  | Uninit
 
