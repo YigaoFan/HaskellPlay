@@ -1,0 +1,1 @@
+main = twice (id id id) 3;
