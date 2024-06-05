@@ -42,7 +42,7 @@ lex (c : cs) lineNum
 lex (c : cs) lineNum
   | isSpace c =
       case c of
-        '\n' -> lex cs (lineNum + 1)
+        '\n' -> (lineNum, "\n") : lex cs (lineNum + 1)
         _ -> lex cs lineNum
   | isDigit c = (lineNum, num) : lex restChars lineNum
   where

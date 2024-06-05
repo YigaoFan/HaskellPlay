@@ -6,12 +6,20 @@ import GHC.Int (Int)
 import Lexer (Token)
 import Data.List ((++))
 import GHC.Base (const)
+import Data.Bifunctor (Bifunctor (first))
 
 type Parser t = [Token] -> [(t, [Token])]
 
 alt :: [Parser t] -> Parser t
 alt [] _ = []
 alt (p : ps) toks = p toks ++ alt ps toks
+
+option :: Parser a -> Parser (Maybe a)
+option p toks =
+  let r = p toks in
+    if null r
+      then [(Nothing, toks)]
+      else map (Data.Bifunctor.first Just) r
 
 next :: (t0 -> t1 -> t2) -> Parser t0 -> Parser t1 -> Parser t2
 next combine p0 p1 tokens =
@@ -60,9 +68,10 @@ zeroOrMore p input =
 apply :: Parser a -> (a -> b) -> Parser b
 apply p convert input = [(convert v, toks) | (v, toks) <- p input]
 
+-- | oneOrMoreWithSep a sep parse for "a sep a"
 oneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
-oneOrMoreWithSep p0 p1 = next (:) pair (zeroOrMore pair)
-  where pair = next const p0 p1
+oneOrMoreWithSep p0 p1 = next (:) p0 (zeroOrMore pair)
+  where pair = next (\_ y -> y) p1 p0
 
 satisfy :: (String -> Bool) -> Parser String
 satisfy pred [] = []

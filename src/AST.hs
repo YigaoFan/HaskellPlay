@@ -23,7 +23,7 @@ data Expr a where
   Let :: IsRecursive -> [(a, Expr a)] -> (Expr a) -> Expr a
   Case :: (Expr a) -> [Alter a] -> Expr a
   Lambda :: [a] -> (Expr a) -> Expr a
-  deriving (Show)
+  deriving (Show, Eq)
 
 isAtomicExpr :: Expr a -> Bool
 isAtomicExpr (Var _) = True

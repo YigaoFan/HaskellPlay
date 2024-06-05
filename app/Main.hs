@@ -7,10 +7,11 @@ import PrettyPrint (makeMultiApplication, display, makeSentence, makeCalculate)
 import System.IO (putStrLn)
 import Prelude hiding (print, lex)
 import Lexer (lex)
-import Parser (syntax, allSyntax)
+import Parser (syntax, allSyntax, parse)
 import Prelude (print)
 -- import TemplateInstantiation.Program (run)
 import GMachine.Program (run)
+import GMachine.Compiler (compileSuperCombinator)
 
 -- let scs = syntax $ lex
 --           "f = 3;\n\
@@ -21,7 +22,7 @@ import GMachine.Program (run)
 --           1
 --     print (length scs)
 -- 写 parser 测试
-src0 = 
+src0 =
   "pair x y f = f x y;\n\
   \fst p = p left;\n\
   \snd p = p right;\n\
@@ -53,7 +54,7 @@ src7 =
   \Cons = Pack{2, 2};\n\
   \main = snd (fst (MakePair (MakePair 1 (MakePair 2 3)) 4));"
 
-src8 = 
+src8 =
   "length xs = caseList xs 0 len;\n\
   \len x xs = 1 + length xs; \n\
   \Nil = Pack{1, 0};\n\
@@ -98,11 +99,15 @@ src14 =
   \main = returnList;"
 -- TODO 实现下 case
 main :: IO ()
+-- main = do
+--   let r = run "main = twice twice id 3;"
+--   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
+--   putStr r
+
 main = do
-  let r = run "main = twice twice id 3;"
-  -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
-  putStr r
+  let (_, _, c) = head (map compileSuperCombinator (parse "main = letrec \nf = f x\n in f"))
+  putStr (show c)
 
 -- difference between putStr and print
 
-    
+

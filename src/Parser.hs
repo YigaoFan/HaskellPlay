@@ -4,7 +4,7 @@ module Parser where
 -- import Data.String (String)
 -- import GHC.Int (Int)
 import Data.Char (isAlpha, isDigit)
-import ParserCombinator (Parser, satisfy, apply, oneOrMoreWithSep, next4, zeroOrMore, alt, next3, next5, next, oneOrMore, empty)
+import ParserCombinator (Parser, satisfy, apply, oneOrMoreWithSep, next4, zeroOrMore, alt, next3, next5, next, oneOrMore, empty, option)
 import Data.Foldable (notElem)
 import Data.Eq ((==))
 import GHC.Base ( (||), (&&) )
@@ -80,7 +80,7 @@ exp6 = application
 def :: Parser (Name, CoreExpr)
 def = next3 (\v _ e -> (v, e)) var (lit "=") exp
 defs :: Parser [(Name, CoreExpr)]
-defs = oneOrMoreWithSep def (lit ";")
+defs = next3 (\_ x _ -> x) (option (lit "\n")) (oneOrMoreWithSep def (lit "\n")) (option (lit "\n"))
 localDef :: Parser CoreExpr
 localDef = next4 (\_ ds _ e -> Let False ds e) (lit "let") defs (lit "in") exp
 localRecurDef :: Parser CoreExpr
@@ -93,7 +93,7 @@ caseAlt = next4 (\n vs _ e -> (n, vs, e))
   (lit "->")
   exp
 caseExp :: Parser CoreExpr
-caseExp = next4 (\_ e _ alts -> Case e alts) (lit "case") exp (lit "of") (oneOrMoreWithSep caseAlt (lit ";"))
+caseExp = next5 (\_ e _ _ alts -> Case e alts) (lit "case") exp (lit "of") (lit "\n") (oneOrMoreWithSep caseAlt (lit "\n"))
 
 lambda :: Parser CoreExpr
 lambda = next4 (\_ vs _ e -> Lambda vs e) (lit "\\") (oneOrMore var) (lit ".") exp
@@ -110,7 +110,7 @@ exp = alt [
 coreSuperCombinator :: Parser CoreSuperCombinator
 coreSuperCombinator = next4 (\v as _ e -> makeSuperCombinator v as e) var (zeroOrMore var) (lit "=") exp
 program :: Parser CoreProgram
-program = oneOrMoreWithSep coreSuperCombinator (lit ";")
+program = next3 (\_ x _ -> x) (zeroOrMore (lit "\n")) (oneOrMore coreSuperCombinator) (zeroOrMore (lit "\n"))
 
 syntax :: [Token] -> CoreProgram
 syntax = takeFirst . program
