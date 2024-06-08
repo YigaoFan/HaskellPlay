@@ -5,6 +5,7 @@ import Heap (initHeap, Addr, heapAlloc, lookup)
 import Data.List (mapAccumL)
 import Prelude hiding (lookup)
 import CorePrelude (defs, extraDefs)
+import Debug.Trace (trace)
 
 initialCode :: GmCode
 initialCode = [PushGlobal "main", Unwind]
@@ -39,7 +40,7 @@ compileC (Var name) env
   | name `elem` domain env = [Push (lookup env name (error "impossible"))]
   | otherwise = [PushGlobal name]
 compileC (Num n) env = [PushInt n]
-compileC (Application e1 e2) env = compileC e1 env ++ compileC e2 (argOffset 1 env) ++ [MakeApplication]
+compileC (Application e1 e2) env = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [MakeApplication]
 compileC (Let False defs exp) env = compileLet compileC defs exp env
 compileC (Let True defs exp) env = compileLetrec compileC defs exp env
 

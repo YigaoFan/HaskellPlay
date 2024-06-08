@@ -105,7 +105,7 @@ main :: IO ()
 --   putStr r
 
 main = do
-  let (_, _, c) = head (map compileSuperCombinator (parse "main = letrec \nf = f x\n in f"))
+  let (_, _, c) = head (map compileSuperCombinator (parse "Y f = letrec \nx = f x\n in x"))
   putStr (show c)
 
 -- difference between putStr and print

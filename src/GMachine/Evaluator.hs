@@ -74,7 +74,7 @@ pop n state =
 update :: Int -> GmState -> GmState
 update n state = do
   let (a : as) = stack state
-  let h = trace (printf "as size: %d, n: %d" (length as) n) heapUpdate (heap state) (as !! n) (Indirect a)
+  let h = heapUpdate (heap state) (as !! n) (Indirect a)
   setStack as (setHeap h state)
 
 unwind :: GmState -> GmState
