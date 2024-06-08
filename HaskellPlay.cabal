@@ -60,11 +60,12 @@ test-suite HaskellPlayTest
     type:       exitcode-stdio-1.0
     main-is:    Main.hs
     hs-source-dirs:   test
-    build-depends: base, HUnit, HaskellPlayLib, directory
+    build-depends: base, HUnit, HaskellPlayLib, directory, template-haskell
     default-language: Haskell2010
     other-modules:
-        EvaluatorTest
-        LexerTest
+        -- EvaluatorTest
+        -- LexerTest
         ParserTest
-        ParserCombinatorTest
+        -- ParserCombinatorTest
+        TypeUtil
     

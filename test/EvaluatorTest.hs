@@ -1,8 +1,8 @@
 module EvaluatorTest where
 
-import Program (exe)
+import TemplateInstantiation.Program (exe)
 import Test.HUnit
-import Compiler (Node(Num))
+import TemplateInstantiation.Compiler (Node (Num))
 import Heap (heapLookup)
 
 src0 =

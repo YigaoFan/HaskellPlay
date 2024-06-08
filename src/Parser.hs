@@ -113,11 +113,11 @@ program :: Parser CoreProgram
 program = next3 (\_ x _ -> x) (zeroOrMore (lit "\n")) (oneOrMore coreSuperCombinator) (zeroOrMore (lit "\n"))
 
 syntax :: [Token] -> CoreProgram
-syntax = takeFirst . program
-    where
-      takeFirst ((p, []) : _) = p
-      takeFirst (_ : others) = takeFirst others --notEmptyRemainToks
-      takeFirst r = error ("Syntax error: result length " ++ show (length r))
+syntax = takeFirstFullParse . program
+
+takeFirstFullParse ((ast, []) : _) = ast
+takeFirstFullParse (_ : others) = takeFirstFullParse others
+takeFirstFullParse r = error ("Syntax error: result length " ++ show (length r))
 
 allSyntax :: [Token] -> [CoreProgram]
 allSyntax = map fst . program
