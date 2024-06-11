@@ -99,14 +99,14 @@ src14 =
   \main = returnList;"
 -- TODO 实现下 case
 main :: IO ()
--- main = do
---   let r = run "main = twice twice id 3;"
---   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
---   putStr r
-
 main = do
-  let (_, _, c) = head (map compileSuperCombinator (parse "Y f = letrec \nx = f x\n in x"))
-  putStr (show c)
+  let r = run "main = let a = 1 + 1 in a + a" -- 现在语法中没分号了！
+  -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
+  putStr r
+
+-- main = do
+--   let (_, _, c) = head (map compileSuperCombinator (parse "Y f = letrec \nx = f x\n in x"))
+--   putStr (show c)
 
 -- difference between putStr and print
 

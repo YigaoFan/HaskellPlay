@@ -8,18 +8,34 @@ import CorePrelude (defs, extraDefs)
 import Debug.Trace (trace)
 
 initialCode :: GmCode
-initialCode = [PushGlobal "main", Unwind]
+initialCode = [PushGlobal "main", Eval]
 
 type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
 
 compile :: CoreProgram -> GmState
-compile program = GmState initialCode [] heap globals initialStat
+compile program = GmState initialCode [] [] heap globals initialStat
   where (heap, globals) = buildInitHeap program
 
-buildInitHeap :: CoreProgram -> (GmHeap, GmGlobals)
-buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator (defs ++ program))
-
 type GmCompiledSuperCombinator = (Name, Int, GmCode)
+compiledPrimitives :: [GmCompiledSuperCombinator]
+compiledPrimitives =
+  [
+    ("+", 2, [Push 1, Eval, Push 1, Eval, Add, Update 2, Pop 2, Unwind]),
+    ("-", 2, [Push 1, Eval, Push 1, Eval, Sub, Update 2, Pop 2, Unwind]),
+    ("*", 2, [Push 1, Eval, Push 1, Eval, Mul, Update 2, Pop 2, Unwind]),
+    ("/", 2, [Push 1, Eval, Push 1, Eval, Div, Update 2, Pop 2, Unwind]),
+    ("negate", 1, [Push 0, Eval, Neg, Update 1, Pop 1, Unwind]),
+    ("==", 2, [Push 1, Eval, Push 1, Eval, Eq, Update 2, Pop 2, Unwind]),
+    ("/=", 2, [Push 1, Eval, Push 1, Eval, Ne, Update 2, Pop 2, Unwind]),
+    ("<", 2, [Push 1, Eval, Push 1, Eval, Lt, Update 2, Pop 2, Unwind]),
+    ("<=", 2, [Push 1, Eval, Push 1, Eval, Le, Update 2, Pop 2, Unwind]),
+    (">", 2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind]),
+    ("<=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind]),
+    ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
+  ]
+buildInitHeap :: CoreProgram -> (GmHeap, GmGlobals)
+buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator (defs ++ program) ++ compiledPrimitives)
+
 allocSuperCombinator :: GmHeap -> GmCompiledSuperCombinator -> (GmHeap, (Name, Addr))
 allocSuperCombinator heap (name, argCount, instructions) =
   (heap', (name, addr))

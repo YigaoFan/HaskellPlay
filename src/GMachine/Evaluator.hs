@@ -1,5 +1,5 @@
 module GMachine.Evaluator where
-import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap), setStats, incStatSteps, setCode, Instruction (PushGlobal, PushInt, MakeApplication, Push, Unwind, Pop, Update, Alloc, Slide), setStack, setHeap, setGlobals, GmHeap, GmStack)
+import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap, GmState, dump), setStats, incStatSteps, setCode, Instruction (..), setStack, setHeap, setGlobals, GmHeap, GmStack, setDump, GmCode)
 import AST (Name)
 import Heap (lookup, heapAlloc, heapLookup, Addr, heapUpdate)
 import Prelude hiding (lookup)
@@ -36,6 +36,19 @@ dispatch (Update n) = update n
 dispatch Unwind = unwind
 dispatch (Alloc n) = alloc n
 dispatch (Slide n) = slide n
+dispatch Eval = evalNode
+dispatch Add = arithmetic2 (+)
+dispatch Sub = arithmetic2 (-)
+dispatch Mul = arithmetic2 (*)
+dispatch Div = arithmetic2 div
+dispatch Neg = arithmetic1 negate
+dispatch Eq = comparison (==)
+dispatch Ne = comparison (/=)
+dispatch Lt = comparison (>)
+dispatch Le = comparison (<=)
+dispatch Gt = comparison (>)
+dispatch Ge = comparison (>=)
+dispatch (Cond code1 code2) = cond code1 code2
 
 pushGlobal :: Name -> GmState -> GmState
 pushGlobal f state =
@@ -60,6 +73,7 @@ makeApplication state =
     (heap', a) = heapAlloc (heap state) (Application a1 a2)
     (a1 : a2 : as') = stack state
 
+-- | push the arg of nth postion's application into stack
 push :: Int -> GmState -> GmState
 push n state = setStack (as !! n : as) state
   where as = stack state
@@ -80,10 +94,13 @@ update n state = do
 unwind :: GmState -> GmState
 unwind state =
   let node = heapLookup (heap state) a in
-  case node of
-    Indirect addr -> setStack (addr : as) state
-    _ -> newState node state
-  where (a : as) = stack state
+    case node of
+      Indirect addr -> setCode [Unwind] (setStack (addr : as) state)
+      Num _ -> setDump d (setCode i (setStack (a : s) state))
+      _ -> newState node state
+  where
+    (a : as) = stack state
+    ((i, s) : d) = dump state
 
 alloc :: Int -> GmState -> GmState
 alloc n state =
@@ -112,3 +129,61 @@ allocNodes n heap = (heap2, a : as)
   where
     (heap1, as) = allocNodes (n - 1) heap
     (heap2, a) = heapAlloc heap1 Uninit
+
+boxInteger :: Int -> GmState -> GmState
+boxInteger n state =
+  setStack (a : stack state) (setHeap h' state)
+  where (h', a) = heapAlloc (heap state) (Num n)
+
+unboxInteger :: Addr -> GmState -> Int
+unboxInteger addr state =
+  unbox (heapLookup (heap state) addr)
+  where
+    unbox (Num i) = i
+    unbox _ = error "Unboxing a non-integer"
+
+boxBool :: Bool -> GmState -> GmState
+boxBool b state =
+  setStack (a : stack state) (setHeap h' state)
+  where (h', a) = heapAlloc (heap state) (Boolean b)
+
+unboxBool :: Addr -> GmState -> Bool
+unboxBool addr state =
+  unbox (heapLookup (heap state) addr)
+  where
+    unbox (Boolean b) = b
+    unbox _ = error "Unboxing a non-boolean"
+
+primitive1 :: (b -> GmState -> GmState) -> (Addr -> GmState -> a) -> (a -> b) -> (GmState -> GmState)
+primitive1 box unbox op state =
+  box (op (unbox a state)) (setStack as state)
+  where a : as = stack state
+
+primitive2 :: (b -> GmState -> GmState) -> (Addr -> GmState -> a) -> (a -> a -> b) -> (GmState -> GmState)
+primitive2 box unbox op state =
+  box (op (unbox a1 state) (unbox a2 state)) (setStack as state)
+  where a1 : a2 : as = stack state
+
+arithmetic1 :: (Int -> Int) -> (GmState -> GmState)
+arithmetic1 = primitive1 boxInteger unboxInteger
+
+arithmetic2 :: (Int -> Int -> Int) -> (GmState -> GmState)
+arithmetic2 = primitive2 boxInteger unboxInteger
+
+comparison :: (Int -> Int -> Bool) -> (GmState -> GmState)
+comparison = primitive2 boxBool unboxInteger
+
+evalNode :: GmState -> GmState
+evalNode state =
+  setCode [Unwind]
+    (setStack [a]
+      (setDump ((code state, as) : dump state) state))
+  where
+    a : as = stack state
+
+cond :: GmCode -> GmCode -> GmState -> GmState
+cond code1 code2 state =
+  let a : as = stack state in
+    let Boolean b = heapLookup (heap state) a in
+      setCode ((if b then code1 else  code2) ++ code state)
+        (setStack as state)
