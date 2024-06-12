@@ -65,4 +65,5 @@ data Node = Num Int
   | Global Int GmCode
   | Indirect Addr
   | Uninit
+  deriving Show
 

@@ -44,7 +44,7 @@ dispatch Div = arithmetic2 div
 dispatch Neg = arithmetic1 negate
 dispatch Eq = comparison (==)
 dispatch Ne = comparison (/=)
-dispatch Lt = comparison (>)
+dispatch Lt = comparison (<)
 dispatch Le = comparison (<=)
 dispatch Gt = comparison (>)
 dispatch Ge = comparison (>=)
@@ -52,7 +52,7 @@ dispatch (Cond code1 code2) = cond code1 code2
 
 pushGlobal :: Name -> GmState -> GmState
 pushGlobal f state =
-  setStack (a : stack state) state
+  trace (printf "pushGlobal %s" f) setStack (a : stack state) state
   where a = lookup (globals state) f (error ("Undeclared global " ++ f))
 
 pushInt :: Int -> GmState -> GmState
@@ -96,7 +96,8 @@ unwind state =
   let node = heapLookup (heap state) a in
     case node of
       Indirect addr -> setCode [Unwind] (setStack (addr : as) state)
-      Num _ -> setDump d (setCode i (setStack (a : s) state))
+      Num _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Num is not empty"
+      Boolean _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Num is not empty"
       _ -> newState node state
   where
     (a : as) = stack state
@@ -113,7 +114,7 @@ slide n state = setStack (a : drop n as) state
 
 newState :: Node -> GmState -> GmState
 newState (Global n code) state
-  | length (stack state) < n = error "Unwinding with too few arguments"
+  | length (stack state) < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
   | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state)
 
 newState (Num n) state = state
@@ -140,19 +141,20 @@ unboxInteger addr state =
   unbox (heapLookup (heap state) addr)
   where
     unbox (Num i) = i
-    unbox _ = error "Unboxing a non-integer"
+    unbox n = error (printf "Unboxing a non-integer: %s" (show n))
 
 boxBool :: Bool -> GmState -> GmState
 boxBool b state =
-  setStack (a : stack state) (setHeap h' state)
+  trace (printf "box bool at %d" a) setStack (a : stack state) (setHeap h' state) -- trace 的实现应该是编译器开洞吧，因为打印输出了，类型签名却不用变，而且为什么这里 trace 不抢 setStack 的参数呢，平时别的函数应用是会抢的
   where (h', a) = heapAlloc (heap state) (Boolean b)
 
 unboxBool :: Addr -> GmState -> Bool
 unboxBool addr state =
-  unbox (heapLookup (heap state) addr)
+  trace (printf "unbox bool at %d" addr) unbox (heapLookup (heap state) addr)
   where
+    -- i = 1 :: Int
     unbox (Boolean b) = b
-    unbox _ = error "Unboxing a non-boolean"
+    unbox n = error (printf "Unboxing a non-boolean: %s" (show n))
 
 primitive1 :: (b -> GmState -> GmState) -> (Addr -> GmState -> a) -> (a -> b) -> (GmState -> GmState)
 primitive1 box unbox op state =
@@ -171,7 +173,7 @@ arithmetic2 :: (Int -> Int -> Int) -> (GmState -> GmState)
 arithmetic2 = primitive2 boxInteger unboxInteger
 
 comparison :: (Int -> Int -> Bool) -> (GmState -> GmState)
-comparison = primitive2 boxBool unboxInteger
+comparison = trace "compare int" primitive2 boxBool unboxInteger
 
 evalNode :: GmState -> GmState
 evalNode state =
@@ -184,6 +186,7 @@ evalNode state =
 cond :: GmCode -> GmCode -> GmState -> GmState
 cond code1 code2 state =
   let a : as = stack state in
-    let Boolean b = heapLookup (heap state) a in
-      setCode ((if b then code1 else  code2) ++ code state)
+    let b = unboxBool a state in
+      setCode ((if b then code1 else code2) ++ code state)
         (setStack as state)
+

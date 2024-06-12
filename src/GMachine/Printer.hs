@@ -13,7 +13,7 @@ showResults states@(s : remain) =
     str "SuperCombinator definitions", Newline,
     interleave Newline (map (showSuperCombinator s) (globals s)), Newline, Newline,
     str "State transitions", Newline,
-    layn (map showState states), Newline,
+    layn (map showState states), Newline, -- 这里能不能改成一个一个显示出来，否则由于惰性求值一个出错，所有都显示不出来了。除了 reverse，我想不到其他影响惰性的地方了。
     showHeap (last states) (heap (last states)), Newline,
     showStats (last states)
   ])
@@ -29,7 +29,7 @@ showSuperCombinator s (name, addr) =
 showInstructions :: GmCode -> Sequence
 showInstructions code =
   concat [
-    str "Code:{", Newline,
+    str "Code: {", Newline,
     Indent (appendNewLineIfNotNull (map showInstruction code)),
     str "}"
   ]
@@ -56,7 +56,11 @@ showInstruction Lt = str "Lt"
 showInstruction Le = str "Le"
 showInstruction Gt = str "Gt"
 showInstruction Ge = str "Ge"
-showInstruction (Cond code1 code2) = Append (showInstructions code1) (showInstructions code2)
+showInstruction (Cond code1 code2) = concat [
+  str "Cond", Newline,
+  Indent (interleave Newline (map showInstruction code1)), Newline,
+  Indent (interleave Newline (map showInstruction code2))
+  ]
 
 showState :: GmState -> Sequence
 showState state =
@@ -96,7 +100,7 @@ showDumpItem (code, stack) =
   concat [
     str "<",
     shortShowInstructions 3 code, str ", ",
-    shortShowStack stack, 
+    shortShowStack stack,
     str ">"
   ]
 shortShowInstructions :: Int -> GmCode -> Sequence
@@ -130,6 +134,7 @@ showHeap state (size, free, addrObjs) =
       str "}"
     ]
 
+-- | will interleave NewLine in lines
 appendNewLineIfNotNull :: [Sequence] -> Sequence
 appendNewLineIfNotNull lines =
       Append (interleave Newline lines)
