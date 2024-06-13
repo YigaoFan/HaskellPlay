@@ -100,7 +100,7 @@ src14 =
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run "main = if (1 > 5) 1 5" -- 现在语法中没分号了！
+  let r = run "main = if (1 > 5) 1 (5 + 2)" -- 现在语法中没分号了！
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 -- 为什么加括号后好多了

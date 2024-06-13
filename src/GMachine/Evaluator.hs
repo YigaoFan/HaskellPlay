@@ -97,7 +97,7 @@ unwind state =
     case node of
       Indirect addr -> setCode [Unwind] (setStack (addr : as) state)
       Num _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Num is not empty"
-      Boolean _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Num is not empty"
+      Boolean _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Boolean is not empty"
       _ -> newState node state
   where
     (a : as) = stack state
@@ -115,7 +115,7 @@ slide n state = setStack (a : drop n as) state
 newState :: Node -> GmState -> GmState
 newState (Global n code) state
   | length (stack state) < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
-  | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state)
+  | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state) -- the original code should empty
 
 newState (Num n) state = state
 newState (Application a1 a2) state = setCode [Unwind] (setStack (a1 : stack state) state)

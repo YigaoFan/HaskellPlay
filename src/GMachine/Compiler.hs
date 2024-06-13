@@ -31,7 +31,7 @@ compiledPrimitives =
     ("<=", 2, [Push 1, Eval, Push 1, Eval, Le, Update 2, Pop 2, Unwind]),
     (">", 2, [Push 1, Eval, Push 1, Eval, Gt, Update 2, Pop 2, Unwind]),
     (">=", 2, [Push 1, Eval, Push 1, Eval, Ge, Update 2, Pop 2, Unwind]),
-    ("if", 2, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
+    ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind]) -- Update、Pop 是 Application 中参数个数
   ]
 buildInitHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator (defs ++ program) ++ compiledPrimitives)
@@ -46,8 +46,8 @@ compileSuperCombinator (name, paraNames, body) =
   (name, length paraNames, compileR body (zip paraNames [0..]))
 
 compileR :: GmCompiler
-compileR exp env = compileC exp env ++ [Update (length env), Pop (length env), Unwind] --为什么这里需要 pop？
-
+compileR exp env = compileC exp env ++ [Update (length env), Pop (length env), Unwind] --为什么这里需要 pop？因为需要把 unwind 的对象露出来
+-- 但这里为什么 Update 和 Pop 是一样的数字呢？如果 compileC exp 里 Push 东西到栈上呢，见笔记
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(name, offset + n) | (name, offset) <- env]
 
