@@ -12,7 +12,7 @@ filter pred xs =
     <2> -> p ps -> let rest = filter pred ps in
       if (pred p) (cons p rest) rest;
 
-nonMultiple p n = ((n / p) * p) ~= n;
+nonMultiple p n = ((n / p) * p) /= n;
 
 take n xs = if (n == 0) nil 
   (case xs of

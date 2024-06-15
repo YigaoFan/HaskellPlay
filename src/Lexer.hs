@@ -17,7 +17,7 @@ isIdChar :: Char -> Bool
 isIdChar c = isAlpha c || isDigit c || (c == '_') || (c == '\'')
 
 twoCharOps :: [String]
-twoCharOps = ["==", "~=", ">=", "<=", "->"]
+twoCharOps = ["==", "/=", ">=", "<=", "->"]
 
 spanIf :: ([a] -> a -> Bool) -> [a] -> ([a], [a])
 spanIf pred xs =

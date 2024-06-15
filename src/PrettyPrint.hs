@@ -28,8 +28,8 @@ instance Show a => PrettyPrinted (Expr a) where
     addParenIfNeed precedence 2 (concat [print e0 2, Str " & ", print e1 2])
   print (Application (Application (Var "==") e0) e1) precedence =
     addParenIfNeed precedence 3 (concat [print e0 3, Str " == ", print e1 3])
-  print (Application (Application (Var "~=") e0) e1) precedence =
-    addParenIfNeed precedence 3 (concat [print e0 3, Str " ~= ", print e1 3])
+  print (Application (Application (Var "/=") e0) e1) precedence =
+    addParenIfNeed precedence 3 (concat [print e0 3, Str " /= ", print e1 3])
   print (Application (Application (Var ">") e0) e1) precedence =
     addParenIfNeed precedence 3 (concat [print e0 3, Str " > ", print e1 3])
   print (Application (Application (Var ">=") e0) e1) precedence =

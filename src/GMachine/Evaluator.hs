@@ -93,15 +93,18 @@ update n state = do
 
 unwind :: GmState -> GmState
 unwind state =
-  let node = heapLookup (heap state) a in
-    case node of
-      Indirect addr -> setCode [Unwind] (setStack (addr : as) state)
-      Num _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Num is not empty"
-      Boolean _ -> if null (code state) then setDump d (setCode i (setStack (a : s) state)) else error "code when unwind encounter Boolean is not empty"
-      _ -> newState node state
+  if null (code state)
+    then handle (heapLookup (heap state) a)
+    else error "code while doing unwind is not empty"
   where
     (a : as) = stack state
     ((i, s) : d) = dump state
+    handle (Indirect addr) = setCode [Unwind] (setStack (addr : as) state)
+    handle (Num _)         = setDump d (setCode i (setStack (a : s) state))
+    handle (Boolean _)     = setDump d (setCode i (setStack (a : s) state))
+    handle (Global n _)
+      | length (stack state) - 1 < n = setDump d (setCode i (setStack (last (stack state) : s) state))
+    handle n               = newState n state
 
 alloc :: Int -> GmState -> GmState
 alloc n state =
@@ -114,7 +117,8 @@ slide n state = setStack (a : drop n as) state
 
 newState :: Node -> GmState -> GmState
 newState (Global n code) state
-  | length (stack state) < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
+  | length (stack state) - 1 < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
+  | length (stack state) - 1 < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
   | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state) -- the original code should empty
 
 newState (Num n) state = state

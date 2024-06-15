@@ -55,6 +55,7 @@ application = apply (oneOrMore atomicExp) (\(ae0 : aes) ->
     else foldl Application (Application ae0 (head aes)) (tail aes))
 
 data PartialExpr = NoOp | FoundOp Name CoreExpr
+-- | 由下可见，操作符是先和左边结合
 asmOp :: CoreExpr -> PartialExpr -> CoreExpr
 asmOp ce NoOp = ce
 asmOp ce0 (FoundOp n ce1) = Application (Application (Var n) ce0) ce1
@@ -67,7 +68,7 @@ exp2 = next asmOp exp3 exp2c
 exp2c = alt [next FoundOp (lit "&") exp2, empty NoOp]
 exp3 :: Parser CoreExpr
 exp3 = next asmOp exp4 exp3c
-exp3c = alt (empty NoOp : map (\op -> next FoundOp (lit op) exp4) ["==", "~=", ">", ">=", "<", "<="])
+exp3c = alt (empty NoOp : map (\op -> next FoundOp (lit op) exp4) ["==", "/=", ">", ">=", "<", "<="])
 exp4 :: Parser CoreExpr
 exp4 = next asmOp exp5 exp4c
 exp4c = alt [empty NoOp, next FoundOp (lit "+") exp4, next FoundOp (lit "-") exp5]
@@ -110,7 +111,8 @@ exp = alt [
 coreSuperCombinator :: Parser CoreSuperCombinator
 coreSuperCombinator = next4 (\v as _ e -> makeSuperCombinator v as e) var (zeroOrMore var) (lit "=") exp
 program :: Parser CoreProgram
-program = next3 (\_ x _ -> x) (zeroOrMore (lit "\n")) (oneOrMore coreSuperCombinator) (zeroOrMore (lit "\n"))
+-- 开头和结尾可以没有换行，但中间至少要有一个
+program = next3 (\_ x _ -> x) (zeroOrMore (lit "\n")) (oneOrMoreWithSep coreSuperCombinator (oneOrMore (lit "\n"))) (zeroOrMore (lit "\n"))
 
 syntax :: [Token] -> CoreProgram
 syntax = takeFirstFullParse . program
