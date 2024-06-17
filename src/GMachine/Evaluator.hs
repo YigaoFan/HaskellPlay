@@ -1,11 +1,12 @@
 module GMachine.Evaluator where
-import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap, GmState, dump), setStats, incStatSteps, setCode, Instruction (..), setStack, setHeap, setGlobals, GmHeap, GmStack, setDump, GmCode)
+import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap, GmState, dump, output), setStats, incStatSteps, setCode, Instruction (..), setStack, setHeap, setGlobals, GmHeap, GmStack, setDump, GmCode, nodeOfTopStack, setOutput)
 import AST (Name)
 import Heap (lookup, heapAlloc, heapLookup, Addr, heapUpdate)
-import Prelude hiding (lookup)
+import Prelude hiding (print, lookup)
 import Data.Foldable (find)
 import Debug.Trace (trace)
 import Text.Printf (printf)
+import Data.List (intersperse)
 
 eval :: GmState -> [GmState]
 eval state = state : remain
@@ -49,6 +50,10 @@ dispatch Le = comparison (<=)
 dispatch Gt = comparison (>)
 dispatch Ge = comparison (>=)
 dispatch (Cond code1 code2) = cond code1 code2
+dispatch (Pack t n) = pack t n
+dispatch (CaseJump cases) = casejump cases
+dispatch (Split n) = split n
+dispatch Print = print
 
 pushGlobal :: Name -> GmState -> GmState
 pushGlobal f state =
@@ -102,6 +107,8 @@ unwind state =
     handle (Indirect addr) = setCode [Unwind] (setStack (addr : as) state)
     handle (Num _)         = setDump d (setCode i (setStack (a : s) state))
     handle (Boolean _)     = setDump d (setCode i (setStack (a : s) state))
+    handle (String _)      = setDump d (setCode i (setStack (a : s) state))
+    handle (Construct {})  = setDump d (setCode i (setStack (a : s) state))
     handle (Global n _)
       | length (stack state) - 1 < n = setDump d (setCode i (setStack (last (stack state) : s) state))
     handle n               = newState n state
@@ -122,6 +129,8 @@ newState (Global n code) state
   | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state) -- the original code should empty
 
 newState (Num n) state = state
+newState (Boolean _) state = state
+newState (String _) state = state
 newState (Application a1 a2) state = setCode [Unwind] (setStack (a1 : stack state) state)
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
@@ -194,3 +203,41 @@ cond code1 code2 state =
       setCode ((if b then code1 else code2) ++ code state)
         (setStack as state)
 
+pack :: Int -> Int -> GmState -> GmState
+pack tag count state =
+  setStack (a : drop count st) (setHeap h state)
+  where
+    st = stack state
+    coms = take count st
+    (h, a) = heapAlloc (heap state) (Construct tag coms)
+
+casejump :: [(Int, GmCode)] -> GmState -> GmState
+casejump cases state =
+  let c = lookup cases tag (error (printf "not find corresponding tag %d" tag)) in
+    setCode (c ++ code state) state
+  where
+    Construct tag _ = nodeOfTopStack state
+
+split :: Int -> GmState -> GmState
+split n state =
+  setStack (coms ++ drop 1 (stack state)) state
+  where
+    Construct _ coms = nodeOfTopStack state
+
+print :: GmState -> GmState
+print state =
+  handle (nodeOfTopStack state)
+  where
+    handle (Num n) = popStackTop (setOutput (show n ++ output state) state)
+    handle (String s) = popStackTop (setOutput (s ++ output state) state)
+    handle (Boolean b) = popStackTop (setOutput (show b ++ output state) state)
+    handle (Construct t coms) =
+      let printElems = intersperse comma coms ++ [rightParen] in
+      setCode (concat (replicate (length printElems) [Eval, Print]) ++ code state) -- + 1 for print ')'
+        (setStack (printElems ++ drop 1 (stack state))
+          (setOutput ('(' : output state)
+            (setHeap heap'' state)))
+    (heap', rightParen) = heapAlloc (heap state) (String ")")
+    (heap'', comma) = heapAlloc heap' (String " ,") --because output will be reversed, so ", " -> ""
+
+    popStackTop s = setStack (drop 1 (stack s)) s

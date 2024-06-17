@@ -1,19 +1,20 @@
 module GMachine.Compiler where
-import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (Var, Num, Application, Let))
+import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (Var, Num, Application, Let, Case, Constructor), Alter)
 import GMachine.Util (GmState (GmState), GmCode, Instruction (..), initialStat, GmHeap, GmGlobals, Node (Global), GmEnvironment, domain)
 import Heap (initHeap, Addr, heapAlloc, lookup)
 import Data.List (mapAccumL)
 import Prelude hiding (lookup)
 import CorePrelude (defs, extraDefs)
 import Debug.Trace (trace)
+import Text.Printf (printf)
 
 initialCode :: GmCode
-initialCode = [PushGlobal "main", Eval]
+initialCode = [PushGlobal "main", Eval, Print]
 
 type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
 
 compile :: CoreProgram -> GmState
-compile program = GmState initialCode [] [] heap globals initialStat
+compile program = GmState "" initialCode [] [] heap globals initialStat
   where (heap, globals) = buildInitHeap program
 
 type GmCompiledSuperCombinator = (Name, Int, GmCode)
@@ -41,7 +42,7 @@ builtInDyadic = [
   ]
 
 buildInitHeap :: CoreProgram -> (GmHeap, GmGlobals)
-buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator (defs ++ program) ++ compiledPrimitives)
+buildInitHeap program = mapAccumL allocSuperCombinator initHeap (map compileSuperCombinator (program) ++ compiledPrimitives)
 
 allocSuperCombinator :: GmHeap -> GmCompiledSuperCombinator -> (GmHeap, (Name, Addr))
 allocSuperCombinator heap (name, argCount, instructions) =
@@ -63,7 +64,21 @@ compileC (Var name) env
   | name `elem` domain env = [Push (lookup env name (error "impossible"))]
   | otherwise = [PushGlobal name]
 compileC (Num n) env = [PushInt n]
-compileC (Application e1 e2) env = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [MakeApplication]
+compileC (Constructor t a) env = [Pack t a]
+compileC app@(Application e1 e2) env -- 下面这个说明有这种语法：Pack{x, y} e1 e2 e3...
+  | hasValidPack app = iter2Cons app env
+  | otherwise = compileC e2 env ++ compileC e1 (argOffset 1 env) ++ [MakeApplication]
+   where
+    getPack n@(Constructor {}) argCount = Just (n, argCount)
+    getPack (Application e1 _) argCount = getPack e1 (argCount + 1)
+    getPack e _ = trace (printf "getPack: %s" (show e)) Nothing
+    hasValidPack (Application e1 e2) = 
+      case getPack e1 1 of
+        Nothing -> trace "getPack: False" False
+        Just (Constructor t a, argCount) -> a == argCount
+    iter2Cons (Application e arg) currentEnv = compileC arg currentEnv ++ iter2Cons e (argOffset 1 currentEnv)
+    iter2Cons (Constructor t a) _ = [Pack t a]
+
 compileC (Let False defs exp) env = compileLet defs compileC exp env
 compileC (Let True defs exp) env = compileLetrec compileC defs compileC exp env
 
@@ -97,4 +112,11 @@ compileE (Application (Application (Var op) e0) e1) env
 compileE (Application (Var "negate") e) env = compileE e env ++ [Neg]
 compileE (Application (Application (Application (Var "if") e0) e1) e2) env =
   compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
+compileE (Case e alts) env = compileE e env ++ [CaseJump (compileAlts compileE' alts env)]
 compileE e env = compileC e env ++ [Eval]
+
+compileAlts :: (Int -> GmCompiler) -> [Alter Name] -> GmEnvironment -> [(Int, GmCode)]
+compileAlts compile alts env = [(tag, compile (length names) body (zip names [0..] ++ argOffset (length names) env)) | (tag, names, body) <- alts]
+
+compileE' :: Int -> GmCompiler
+compileE' offset exp env = Split offset : compileE exp env ++ [Slide offset]
