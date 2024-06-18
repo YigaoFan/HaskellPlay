@@ -1,10 +1,18 @@
 module GMachine.Printer where
-import GMachine.Util (GmState (heap, globals, stats, stack, code, dump, output), Instruction (..), Node (Global, Num, Application, Indirect, Boolean, Construct), GmCode, getStatSteps, GmDumpItem, GmStack, GmHeap)
+import GMachine.Util
+    ( GmState(heap, globals, stats, stack, code, dump, output),
+      Instruction(..),
+      Node(..),
+      GmCode,
+      getStatSteps,
+      GmDumpItem,
+      GmStack,
+      GmHeap,
+      Node(String) )
 import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn)
 import Prelude hiding (concat)
 import Heap (Addr, heapLookup)
 import AST (Name)
-import GMachine.Util (Node(String))
 
 -- 显示的函数不要管两头的换行，只管内部的换行
 
@@ -92,7 +100,7 @@ showStackItem state addr =
   concat [showAddr addr, str ": ", showNode state addr (heapLookup (heap state) addr)]
 showNode :: GmState -> Addr -> Node -> Sequence
 showNode state addr (Num n) = num n
-showNode state addr (Boolean b) = str (show b)
+-- showNode state addr (Boolean b) = str (show b)
 showNode state addr (String s) = str (show s)
 showNode state addr (Global n g) = concat [str "Global ", str v]
   where v = head [n | (n, a) <- globals state, addr == a]

@@ -18,14 +18,16 @@ defs
 
 extraDefs :: CoreProgram
 extraDefs = parse
-  "length xs = caseList xs 0 len;\n\
-  \len x xs = 1 + length xs;\n\
-  \head xs = caseList xs (abort \"empty list\") headHandleNonEmtpy;\n\
-  \headHandleNonEmtpy i is = i;\n\
-  \tail xs = caseList xs (abort \"empty list\") tailHandleNonEmtpy;\n\
-  \tailHandleNonEmtpy i is = is;\n\
-  \Nil = Pack{1, 0};\n\
-  \Cons = Pack{2, 2};\n\
-  \_main = printList main;\n\
-  \printList xs = caseList xs stop printCons;\n\
-  \printCons h t = print h (printList t);"
+  "length xs = caseList xs 0 len\n\
+  \len x xs = 1 + length xs\n\
+  \head xs = caseList xs (abort \"empty list\") headHandleNonEmtpy\n\
+  \headHandleNonEmtpy i is = i\n\
+  \tail xs = caseList xs (abort \"empty list\") tailHandleNonEmtpy\n\
+  \tailHandleNonEmtpy i is = is\n\
+  \Nil = Pack{1, 0}\n\
+  \Cons = Pack{2, 2}\n\
+  \_main = printList main\n\
+  \printList xs = caseList xs stop printCons\n\
+  \printCons h t = print h (printList t)\n\
+  \True = Pack{2, 0}\n\
+  \False = Pack{1, 0}"

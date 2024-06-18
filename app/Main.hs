@@ -111,15 +111,19 @@ src17 =
   \main = (returnFunc 1 2 (add 1) (add 2)) 2"
 
 src18 = "main = if (1 /= 5) 1 (5 + 2)" -- 现在语法中没分号了！
+-- 为什么加括号后好多了
 
 src19 = "main = Pack{1, 2} 4 2"
+
+src20 = 
+  "fac n = if (n == 0) 1 (n * fac (n - 1))\n\
+   \main = fac 20"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src19
+  let r = run src20
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
--- 为什么加括号后好多了
 
 -- main = do
 --   let (_, _, c) = head (map compileSuperCombinator (parse "Y f = letrec \nx = f x\n in x"))

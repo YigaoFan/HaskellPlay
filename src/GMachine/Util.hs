@@ -70,7 +70,7 @@ instance Eq Instruction where
   _ == _ = False
 
 data Node = Num Int
-  | Boolean Bool
+  -- | Boolean Bool
   | String String
   | Application Addr Addr
   | Global Int GmCode
@@ -81,7 +81,7 @@ data Node = Num Int
 
 instance Eq Node where
   (==) :: Node -> Node -> Bool
-  Boolean a == Boolean b = a == b
+  -- Boolean a == Boolean b = a == b
   Num a == Num b = a == b
   Application a b == Application c d = False
   Global a b == Global c d = False

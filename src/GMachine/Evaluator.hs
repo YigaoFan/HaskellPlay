@@ -106,7 +106,7 @@ unwind state =
     ((i, s) : d) = dump state
     handle (Indirect addr) = setCode [Unwind] (setStack (addr : as) state)
     handle (Num _)         = setDump d (setCode i (setStack (a : s) state))
-    handle (Boolean _)     = setDump d (setCode i (setStack (a : s) state))
+    -- handle (Boolean _)     = setDump d (setCode i (setStack (a : s) state))
     handle (String _)      = setDump d (setCode i (setStack (a : s) state))
     handle (Construct {})  = setDump d (setCode i (setStack (a : s) state))
     handle (Global n _)
@@ -129,7 +129,7 @@ newState (Global n code) state
   | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state) -- the original code should empty
 
 newState (Num n) state = state
-newState (Boolean _) state = state
+-- newState (Boolean _) state = state
 newState (String _) state = state
 newState (Application a1 a2) state = setCode [Unwind] (setStack (a1 : stack state) state)
 
@@ -158,15 +158,19 @@ unboxInteger addr state =
 
 boxBool :: Bool -> GmState -> GmState
 boxBool b state =
-  trace (printf "box bool at %d" a) setStack (a : stack state) (setHeap h' state) -- trace 的实现应该是编译器开洞吧，因为打印输出了，类型签名却不用变，而且为什么这里 trace 不抢 setStack 的参数呢，平时别的函数应用是会抢的
-  where (h', a) = heapAlloc (heap state) (Boolean b)
+  trace (printf "box bool at %d" a) setStack (a : stack state) (setHeap h' state)
+  where
+    (h', a) = heapAlloc (heap state) (Construct t [])
+    t | b = 2 -- 2 is tag of True
+      | otherwise = 1 -- 1 is tag of False
 
 unboxBool :: Addr -> GmState -> Bool
 unboxBool addr state =
   trace (printf "unbox bool at %d" addr) unbox (heapLookup (heap state) addr)
   where
     -- i = 1 :: Int
-    unbox (Boolean b) = b
+    unbox (Construct 2 []) = True
+    unbox (Construct 1 []) = False
     unbox n = error (printf "Unboxing a non-boolean: %s" (show n))
 
 primitive1 :: (b -> GmState -> GmState) -> (Addr -> GmState -> a) -> (a -> b) -> (GmState -> GmState)
@@ -225,12 +229,12 @@ split n state =
     Construct _ coms = nodeOfTopStack state
 
 print :: GmState -> GmState
-print state =
+print state = -- reverse this time output content
   handle (nodeOfTopStack state)
   where
-    handle (Num n) = popStackTop (setOutput (show n ++ output state) state)
-    handle (String s) = popStackTop (setOutput (s ++ output state) state)
-    handle (Boolean b) = popStackTop (setOutput (show b ++ output state) state)
+    handle (Num n) = popStackTop (setOutput (reverse (show n) ++ output state) state)
+    handle (String s) = popStackTop (setOutput (reverse s ++ output state) state)
+    -- handle (Boolean b) = popStackTop (setOutput (show b ++ output state) state)
     handle (Construct t coms) =
       let printElems = intersperse comma coms ++ [rightParen] in
       setCode (concat (replicate (length printElems) [Eval, Print]) ++ code state) -- + 1 for print ')'
