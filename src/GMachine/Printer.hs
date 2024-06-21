@@ -1,6 +1,6 @@
 module GMachine.Printer where
 import GMachine.Util
-    ( GmState(heap, globals, stats, stack, code, dump, output),
+    ( GmState(heap, globals, stats, stack, code, dump, output, vStack),
       Instruction(..),
       Node(..),
       GmCode,
@@ -81,6 +81,7 @@ showState state =
   concat [
     showStack state, Newline,
     showDump state, Newline,
+    showVStack state, Newline,
     showInstructions (code state), Newline,
     showOutput state
   ]
@@ -141,6 +142,14 @@ shortShowStack stack =
     str "[",
     interleave (str ", ") (map showAddr stack),
     str "]"
+  ]
+
+showVStack :: GmState -> Sequence
+showVStack state =
+  concat [
+    str "VStack: [ ",
+    interleave (str ", ") (map num (vStack state)),
+    str " ]"
   ]
 
 showStats :: GmState -> Sequence

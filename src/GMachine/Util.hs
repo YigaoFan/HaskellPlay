@@ -61,7 +61,8 @@ data Instruction =
   Eval | Add | Sub | Mul | Div | Neg |
   Eq | Ne | Lt | Le | Gt | Ge | Cond GmCode GmCode |
   Pack Int Int | CaseJump [(Int, GmCode)] |
-  Split Int | Print
+  Split Int | Print |
+  PushBasic Int | MakeBool | MakeInt | Get
   deriving Show
 
 instance Eq Instruction where

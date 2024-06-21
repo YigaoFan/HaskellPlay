@@ -1,5 +1,5 @@
 module GMachine.Evaluator where
-import GMachine.Util (Node(..), GmState (stats, code, globals, stack, heap, GmState, dump, output), setStats, incStatSteps, setCode, Instruction (..), setStack, setHeap, setGlobals, GmHeap, GmStack, setDump, GmCode, nodeOfTopStack, setOutput)
+import GMachine.Util (Node(..), GmState (..), setStats, incStatSteps, setCode, Instruction (..), setStack, setHeap, setGlobals, GmHeap, GmStack, setDump, GmCode, nodeOfTopStack, setOutput, setVStack)
 import AST (Name)
 import Heap (lookup, heapAlloc, heapLookup, Addr, heapUpdate)
 import Prelude hiding (print, lookup)
@@ -54,6 +54,10 @@ dispatch (Pack t n) = pack t n
 dispatch (CaseJump cases) = casejump cases
 dispatch (Split n) = split n
 dispatch Print = print
+dispatch (PushBasic n) = pushBasic n
+dispatch MakeBool = makeBool
+dispatch MakeInt = makeInt
+dispatch Get = get
 
 pushGlobal :: Name -> GmState -> GmState
 pushGlobal f state =
@@ -178,19 +182,30 @@ primitive1 box unbox op state =
   box (op (unbox a state)) (setStack as state)
   where a : as = stack state
 
+primitive1OnVStack :: (Int -> Int) -> (GmState -> GmState)
+primitive1OnVStack op state =
+  setVStack (op a : as) state
+  where a : as = vStack state
+
 primitive2 :: (b -> GmState -> GmState) -> (Addr -> GmState -> a) -> (a -> a -> b) -> (GmState -> GmState)
 primitive2 box unbox op state =
   box (op (unbox a1 state) (unbox a2 state)) (setStack as state)
-  where a1 : a2 : as = stack state
+  where a1 : a2 : as = vStack state
 
+primitive2OnVStack :: (Int -> Int -> Int) -> (GmState -> GmState)
+primitive2OnVStack op state =
+   setVStack (op a1 a2 : as) state
+  where a1 : a2 : as = vStack state
+
+-- 改下面三个
 arithmetic1 :: (Int -> Int) -> (GmState -> GmState)
-arithmetic1 = primitive1 boxInteger unboxInteger
+arithmetic1 = primitive1OnVStack
 
 arithmetic2 :: (Int -> Int -> Int) -> (GmState -> GmState)
-arithmetic2 = primitive2 boxInteger unboxInteger
+arithmetic2 = primitive2OnVStack
 
 comparison :: (Int -> Int -> Bool) -> (GmState -> GmState)
-comparison = trace "compare int" primitive2 boxBool unboxInteger
+comparison op = primitive2OnVStack (\a b -> if op a b then 2 else 1)
 
 evalNode :: GmState -> GmState
 evalNode state =
@@ -245,3 +260,32 @@ print state = -- reverse this time output content
     (heap'', comma) = heapAlloc heap' (String " ,") --because output will be reversed, so ", " -> ""
 
     popStackTop s = setStack (drop 1 (stack s)) s
+
+pushBasic :: Int -> GmState -> GmState
+pushBasic num state =
+  let vStk = vStack state in
+    setVStack (num : vStk) state
+
+-- set heap stack vStack h s v
+
+makeBool :: GmState -> GmState
+makeBool state = do
+  let t : vStk = vStack state
+  let (h, a) = heapAlloc (heap state) (Construct t [])
+  setStack (a : stack state) (setHeap h (setVStack vStk state))
+
+makeInt :: GmState -> GmState
+makeInt state = do
+  let n : vStk = vStack state
+  let (h, a) = heapAlloc (heap state) (Num n)
+  setStack (a : stack state) (setHeap h (setVStack vStk state))
+
+get :: GmState -> GmState
+get state =
+  let a : stk = stack state in
+    setStack stk 
+      (setVStack
+        ((case heapLookup (heap state) a of
+          Num n -> n
+          Construct t [] -> t): vStack state) state)
+  
