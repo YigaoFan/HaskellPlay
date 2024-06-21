@@ -118,10 +118,20 @@ src19 = "main = Pack{1, 2} 4 2"
 src20 = 
   "fac n = if (n == 0) 1 (n * fac (n - 1))\n\
    \main = fac 20"
+
+src21 =
+  "f x = Pack{2, 2} (case x of\n <1> -> 1\n <2> -> 2) Pack{1, 0}\n\
+  \Nil = Pack{1, 0}\n\
+  \Cons = Pack{2, 2}\n\
+  \map f xs = case xs of\n\
+    \<1> -> Nil\n\
+    \<2> x remain -> Cons (f x) (map f xs)\n\
+  \prefix p xs = map (Pack{2, 2} p) xs\n\
+  \main = 1"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src20
+  let r = run src21
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 

@@ -4,6 +4,7 @@ import Heap (Addr, Heap, heapLookup)
 import AST (Name)
 
 type GmStack = [Addr]
+type GmVStack = [Int]
 type GmDumpItem = (GmCode, GmStack)
 type GmDump = [GmDumpItem]
 type GmCode = [Instruction]
@@ -26,6 +27,7 @@ data GmState = GmState
     code :: GmCode,
     stack :: GmStack,
     dump :: GmDump,
+    vStack :: GmVStack,
     heap :: GmHeap,
     globals :: GmGlobals,
     stats :: GmStats
@@ -39,6 +41,8 @@ setStack :: GmStack -> GmState -> GmState
 setStack st s = s { stack = st }
 setDump :: GmDump -> GmState -> GmState
 setDump d s = s { dump = d }
+setVStack :: GmVStack -> GmState -> GmState
+setVStack v s = s { vStack = v }
 setHeap :: GmHeap -> GmState -> GmState
 setHeap h s = s { heap = h }
 setGlobals :: GmGlobals -> GmState -> GmState

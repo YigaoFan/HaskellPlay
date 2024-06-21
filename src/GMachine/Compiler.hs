@@ -81,6 +81,7 @@ compileC app@(Application e1 e2) env -- 下面这个说明有这种语法：Pack
 
 compileC (Let False defs exp) env = compileLet defs compileC exp env
 compileC (Let True defs exp) env = compileLetrec compileC defs compileC exp env
+compileC e env = error ("not handled in compileC " ++ show e)
 
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler -> GmCompiler
 compileLetrec compileDef defs compileExp exp env =
