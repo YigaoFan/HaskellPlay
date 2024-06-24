@@ -2,7 +2,7 @@ module GMachine.Evaluator where
 import GMachine.Util (Node(..), GmState (..), setStats, incStatSteps, setCode, Instruction (..), setStack, setHeap, setGlobals, GmHeap, GmStack, setDump, GmCode, nodeOfTopStack, setOutput, setVStack)
 import AST (Name)
 import Heap (lookup, heapAlloc, heapLookup, Addr, heapUpdate)
-import Prelude hiding (print, lookup)
+import Prelude hiding (print, lookup, return)
 import Data.Foldable (find)
 import Debug.Trace (trace)
 import Text.Printf (printf)
@@ -58,10 +58,11 @@ dispatch (PushBasic n) = pushBasic n
 dispatch MakeBool = makeBool
 dispatch MakeInt = makeInt
 dispatch Get = get
+dispatch Return = return
 
 pushGlobal :: Name -> GmState -> GmState
 pushGlobal f state =
-  trace (printf "pushGlobal %s" f) setStack (a : stack state) state
+  setStack (a : stack state) state
   where a = lookup (globals state) f (error ("Undeclared global " ++ f))
 
 pushInt :: Int -> GmState -> GmState
@@ -106,15 +107,14 @@ unwind state =
     then handle (heapLookup (heap state) a)
     else error "code while doing unwind is not empty"
   where
-    (a : as) = stack state
-    ((i, s) : d) = dump state
+    a : as = stack state
+    (i, s, v) : d = dump state
     handle (Indirect addr) = setCode [Unwind] (setStack (addr : as) state)
-    handle (Num _)         = setDump d (setCode i (setStack (a : s) state))
-    -- handle (Boolean _)     = setDump d (setCode i (setStack (a : s) state))
-    handle (String _)      = setDump d (setCode i (setStack (a : s) state))
-    handle (Construct {})  = setDump d (setCode i (setStack (a : s) state))
+    handle (Num _)         = setDump d (setCode i (setStack (a : s) (setVStack v state)))
+    handle (String _)      = setDump d (setCode i (setStack (a : s) (setVStack v state)))
+    handle (Construct {})  = setDump d (setCode i (setStack (a : s) (setVStack v state)))
     handle (Global n _)
-      | length (stack state) - 1 < n = setDump d (setCode i (setStack (last (stack state) : s) state))
+      | length (stack state) - 1 < n = setDump d (setCode i (setStack (last (stack state) : s) (setVStack v state)))
     handle n               = newState n state
 
 alloc :: Int -> GmState -> GmState
@@ -129,12 +129,10 @@ slide n state = setStack (a : drop n as) state
 newState :: Node -> GmState -> GmState
 newState (Global n code) state
   | length (stack state) - 1 < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
-  | length (stack state) - 1 < n = error (printf "Unwinding with too few arguments. expect: %d, actual: %d" n (length (stack state)))
   | otherwise = setStack (rearrange n (heap state) (stack state)) (setCode code state) -- the original code should empty
 
-newState (Num n) state = state
--- newState (Boolean _) state = state
-newState (String _) state = state
+-- newState (Num n) state = state
+-- newState (String _) state = state
 newState (Application a1 a2) state = setCode [Unwind] (setStack (a1 : stack state) state)
 
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
@@ -210,17 +208,19 @@ comparison op = primitive2OnVStack (\a b -> if op a b then 2 else 1)
 evalNode :: GmState -> GmState
 evalNode state =
   setCode [Unwind]
-    (setStack [a]
-      (setDump ((code state, as) : dump state) state))
+    (setVStack []
+      (setStack [a]
+        (setDump ((code state, as, vStack state) : dump state) state)))
   where
     a : as = stack state
 
 cond :: GmCode -> GmCode -> GmState -> GmState
 cond code1 code2 state =
-  let a : as = stack state in
-    let b = unboxBool a state in
-      setCode ((if b then code1 else code2) ++ code state)
-        (setStack as state)
+  let a : as = vStack state in
+    setCode ((case a of
+      2 -> code1
+      1 -> code2) ++ code state)
+        (setVStack as state)
 
 pack :: Int -> Int -> GmState -> GmState
 pack tag count state =
@@ -249,13 +249,13 @@ print state = -- reverse this time output content
   where
     handle (Num n) = popStackTop (setOutput (reverse (show n) ++ output state) state)
     handle (String s) = popStackTop (setOutput (reverse s ++ output state) state)
-    -- handle (Boolean b) = popStackTop (setOutput (show b ++ output state) state)
     handle (Construct t coms) =
       let printElems = intersperse comma coms ++ [rightParen] in
       setCode (concat (replicate (length printElems) [Eval, Print]) ++ code state) -- + 1 for print ')'
         (setStack (printElems ++ drop 1 (stack state))
           (setOutput ('(' : output state)
             (setHeap heap'' state)))
+    handle e = error ("print not handled " ++ show e)
     (heap', rightParen) = heapAlloc (heap state) (String ")")
     (heap'', comma) = heapAlloc heap' (String " ,") --because output will be reversed, so ", " -> ""
 
@@ -267,13 +267,14 @@ pushBasic num state =
     setVStack (num : vStk) state
 
 -- set heap stack vStack h s v
-
+-- | pack head of vStack item as Boolean into heap, then push the addr to stack
 makeBool :: GmState -> GmState
 makeBool state = do
   let t : vStk = vStack state
   let (h, a) = heapAlloc (heap state) (Construct t [])
   setStack (a : stack state) (setHeap h (setVStack vStk state))
 
+-- | pack head of vStack item as Int into heap, then push the addr to stack
 makeInt :: GmState -> GmState
 makeInt state = do
   let n : vStk = vStack state
@@ -283,9 +284,18 @@ makeInt state = do
 get :: GmState -> GmState
 get state =
   let a : stk = stack state in
-    setStack stk 
+    setStack stk
       (setVStack
         ((case heapLookup (heap state) a of
           Num n -> n
           Construct t [] -> t): vStack state) state)
-  
+
+return :: GmState -> GmState
+return state =
+  if not (null (code state))
+    then error "code while doing unwind is not empty"
+    else setCode i
+      (setStack (head (stack state) : s)
+        (setVStack v state))
+      where
+        (i, s, v) : d = dump state

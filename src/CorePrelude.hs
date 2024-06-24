@@ -1,8 +1,25 @@
 module CorePrelude where
 
-import AST (CoreProgram, Expr(..))
+import AST (CoreProgram, Expr(..), CoreSuperCombinator)
 import Parser (parse)
 
+primitives :: [CoreSuperCombinator]
+primitives = [
+  ("negate", ["x"], Application (Var "negate") (Var "x")),
+  ("+", ["x", "y"], Application (Application (Var "+") (Var "x")) (Var "y")),
+  ("-", ["x", "y"], Application (Application (Var "-") (Var "x")) (Var "y")),
+  ("*", ["x", "y"], Application (Application (Var "*") (Var "x")) (Var "y")),
+  ("/", ["x", "y"], Application (Application (Var "/") (Var "x")) (Var "y")),
+  ("==", ["x", "y"], Application (Application (Var "==") (Var "x")) (Var "y")),
+  ("/=", ["x", "y"], Application (Application (Var "/=") (Var "x")) (Var "y")),
+  (">=", ["x", "y"], Application (Application (Var ">=") (Var "x")) (Var "y")),
+  (">", ["x", "y"], Application (Application (Var ">") (Var "x")) (Var "y")),
+  ("<=", ["x", "y"], Application (Application (Var "<=") (Var "x")) (Var "y")),
+  ("<", ["x", "y"], Application (Application (Var "<") (Var "x")) (Var "y")),
+  ("if", ["c", "t", "f"], Application (Application (Application (Var "if") (Var "c")) (Var "t")) (Var "f")),
+  ("True", [], Constructor 2 0),
+  ("False", [], Constructor 1 0)
+  ]
 -- 这几个定义的是函数还是类型构造器？
 defs :: CoreProgram
 defs 

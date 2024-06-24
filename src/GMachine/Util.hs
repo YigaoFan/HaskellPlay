@@ -5,7 +5,7 @@ import AST (Name)
 
 type GmStack = [Addr]
 type GmVStack = [Int]
-type GmDumpItem = (GmCode, GmStack)
+type GmDumpItem = (GmCode, GmStack, GmVStack)
 type GmDump = [GmDumpItem]
 type GmCode = [Instruction]
 type GmHeap = Heap Node
@@ -62,7 +62,8 @@ data Instruction =
   Eq | Ne | Lt | Le | Gt | Ge | Cond GmCode GmCode |
   Pack Int Int | CaseJump [(Int, GmCode)] |
   Split Int | Print |
-  PushBasic Int | MakeBool | MakeInt | Get
+  PushBasic Int | MakeBool | MakeInt | Get |
+  Return
   deriving Show
 
 instance Eq Instruction where
@@ -75,7 +76,6 @@ instance Eq Instruction where
   _ == _ = False
 
 data Node = Num Int
-  -- | Boolean Bool
   | String String
   | Application Addr Addr
   | Global Int GmCode
@@ -86,7 +86,6 @@ data Node = Num Int
 
 instance Eq Node where
   (==) :: Node -> Node -> Bool
-  -- Boolean a == Boolean b = a == b
   Num a == Num b = a == b
   Application a b == Application c d = False
   Global a b == Global c d = False

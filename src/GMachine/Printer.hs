@@ -8,7 +8,7 @@ import GMachine.Util
       GmDumpItem,
       GmStack,
       GmHeap,
-      Node(String) )
+      Node(String), GmVStack )
 import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn)
 import Prelude hiding (concat)
 import Heap (Addr, heapLookup)
@@ -75,6 +75,11 @@ showInstruction (Pack a b) = concat [str "Pack ", num a, str ", ", num b]
 showInstruction (CaseJump xs) = concat [str "CaseJump", Newline, Indent (interleave Newline (map (\(i, code) -> concat [str "(", num i, str " -> ", interleave (str ", ") (map showInstruction code), str ")"]) xs))]
 showInstruction Print = str "Print"
 showInstruction (Split a) = concat [str "Split ", num a]
+showInstruction (PushBasic n) = Append (str "PushBasic ") (num n)
+showInstruction MakeBool = str "MakeBool"
+showInstruction MakeInt = str "MakeInt"
+showInstruction Get = str "Get"
+showInstruction Return = str "Return"
 
 showState :: GmState -> Sequence
 showState state =
@@ -100,8 +105,8 @@ showStackItem :: GmState -> Addr -> Sequence
 showStackItem state addr =
   concat [showAddr addr, str ": ", showNode state addr (heapLookup (heap state) addr)]
 showNode :: GmState -> Addr -> Node -> Sequence
+showNode state addr Uninit = str "Uninit"
 showNode state addr (Num n) = num n
--- showNode state addr (Boolean b) = str (show b)
 showNode state addr (String s) = str (show s)
 showNode state addr (Global n g) = concat [str "Global ", str v]
   where v = head [n | (n, a) <- globals state, addr == a]
@@ -120,11 +125,12 @@ showDump state =
     str "]"
   ]
 showDumpItem :: GmDumpItem -> Sequence
-showDumpItem (code, stack) =
+showDumpItem (code, stack, v) =
   concat [
     str "<",
     shortShowInstructions 3 code, str ", ",
     shortShowStack stack,
+    shortShowVStack v,
     str ">"
   ]
 shortShowInstructions :: Int -> GmCode -> Sequence
@@ -141,6 +147,13 @@ shortShowStack stack =
   concat [
     str "[",
     interleave (str ", ") (map showAddr stack),
+    str "]"
+  ]
+shortShowVStack :: GmVStack -> Sequence
+shortShowVStack vStack =
+  concat [
+    str "[",
+    interleave (str ", ") (map num vStack),
     str "]"
   ]
 

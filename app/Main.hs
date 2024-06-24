@@ -128,10 +128,15 @@ src21 =
     \<2> x remain -> Cons (f x) (map f xs)\n\
   \prefix p xs = map (Pack{2, 2} p) xs\n\
   \main = 1"
+
+src22 =
+  "main = (letrec a = 1 in a + 1) + (let b = 2 in b - 1)"
+
+src23 = "main = negate 3"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src21
+  let r = run src23
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
