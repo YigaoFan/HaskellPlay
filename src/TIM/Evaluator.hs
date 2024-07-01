@@ -95,5 +95,3 @@ enterIntConst n state =
   if not (null (code state))
     then codeShouldBeEmptyError
     else setCode intCode (setFramePtr (FrameInt n) state)
-
--- 弄懂 frame 的运行过程
