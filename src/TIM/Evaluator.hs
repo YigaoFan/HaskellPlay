@@ -79,21 +79,21 @@ enterLabel label state =
 enterArg :: Int -> TimState -> TimState
 enterArg k state = 
   if not (null (code state))
-  then codeShouldBeEmptyError
-  else do
-    let (ik, fk) = getClosure (heap state) (framePtr state) k
-    setCode ik (setFramePtr fk state)
+    then codeShouldBeEmptyError
+    else do
+      let (ik, fk) = getClosure (heap state) (framePtr state) k
+      setCode ik (setFramePtr fk state)
 
 enterCode :: TimCode -> TimState -> TimState
 enterCode instructions state =
   if not (null (code state))
-  then codeShouldBeEmptyError
-  else setCode instructions state
+    then codeShouldBeEmptyError
+    else setCode instructions state
 
 enterIntConst :: Int -> TimState -> TimState
 enterIntConst n state =
   if not (null (code state))
-  then codeShouldBeEmptyError
-  else setCode intCode (setFramePtr (FrameInt n) state)
+    then codeShouldBeEmptyError
+    else setCode intCode (setFramePtr (FrameInt n) state)
 
 -- 弄懂 frame 的运行过程
