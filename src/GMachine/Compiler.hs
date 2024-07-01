@@ -1,12 +1,13 @@
 module GMachine.Compiler where
 import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (Var, Num, Application, Let, Case, Constructor), Alter)
-import GMachine.Util (GmState (GmState), GmCode, Instruction (..), initialStat, GmHeap, GmGlobals, Node (Global), GmEnvironment, domain)
+import GMachine.Util (GmState (GmState), GmCode, Instruction (..), initialStat, GmHeap, GmGlobals, Node (Global), GmEnvironment, )
 import Heap (initHeap, Addr, heapAlloc, lookup)
 import Data.List (mapAccumL)
 import Prelude hiding (lookup)
 import CorePrelude (defs, extraDefs, primitives)
 import Debug.Trace (trace)
 import Text.Printf (printf)
+import Util (domain)
 
 initialCode :: GmCode
 initialCode = [PushGlobal "main", Eval, Print]

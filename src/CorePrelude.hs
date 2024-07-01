@@ -24,10 +24,10 @@ primitives = [
 defs :: CoreProgram
 defs 
   = [
-    ("id", ["x"], Var "x"),
+    -- ("id", ["x"], Var "x"),
     ("left", ["x", "y"], Var "x"), -- K
     ("right", ["x", "y"], Var "y"), -- K1
-    ("s", ["f", "g", "x"], Application (Application (Var "f") (Var "x"))
+    ("s", ["f", "g", "x"], Application (Application (Var "f") (Var "x")) -- f x (g x)
                                        (Application (Var "g") (Var "x"))),
     ("compose", ["f", "g", "x"], Application (Var "f") (Application (Var "g") (Var "x"))),
     ("twice", ["f"], Application (Application (Var "compose") (Var "f")) (Var "f"))

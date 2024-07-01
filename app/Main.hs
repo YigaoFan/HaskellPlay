@@ -10,18 +10,10 @@ import Lexer (lex)
 import Parser (syntax, allSyntax, parse)
 import Prelude (print)
 -- import TemplateInstantiation.Program (run)
-import GMachine.Program (run)
+-- import GMachine.Program (run)
 import GMachine.Compiler (compileSuperCombinator)
+import TIM.Program (run, fullRun)
 
--- let scs = syntax $ lex
---           "f = 3;\n\
---           \g x y = let z = x in z;\n\
---           \h x = case (let y = x in y) of\n\
---           \<1> -> 2;\n\
---           \<2> -> 5 "
---           1
---     print (length scs)
--- 写 parser 测试
 src0 =
   "pair x y f = f x y;\n\
   \fst p = p left;\n\
@@ -133,10 +125,18 @@ src22 =
   "main = (letrec a = 1 in a + 1) + (let b = 2 in b - 1)"
 
 src23 = "main = negate 3"
+
+src24 = "main = s left left 4"
+
+src25 =
+  "id = s left left\n\
+  \id1 = id id\n\
+  \main = id1 4"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src23
+  let r = run src25
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 

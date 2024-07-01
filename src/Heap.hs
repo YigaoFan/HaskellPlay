@@ -37,3 +37,6 @@ heapFree heap@(size, free, addrObjs) addr =
   if any ((addr==) . fst) addrObjs
     then (size - 1, addr : free, filter ((addr/=) . fst) addrObjs)
     else heap
+  
+heapSize :: Heap a -> Int
+heapSize (s, _, _) = s

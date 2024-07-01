@@ -14,9 +14,6 @@ type GmStats = Int
 type GmEnvironment = [(Name, Int)]
 type GmOutput = String
 
-domain :: [(a, b)] -> [a]
-domain list = [key | (key, _) <- list]
-
 initialStat :: GmStats
 initialStat = 0
 incStatSteps s = s + 1
