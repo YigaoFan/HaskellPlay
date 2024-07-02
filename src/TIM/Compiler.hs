@@ -11,8 +11,8 @@ type TimEnvironment = [(Name, TimAddrMode)]
 compile :: CoreProgram -> TimState
 compile program = TimState [Enter (Label "main")] FrameNull initStack initValueStack initDump initHeap compiledScDefs initStats
   where
-    -- scDefs = defs ++ primitives ++ program
-    scDefs = defs ++ program
+    scDefs = defs ++ primitives ++ program
+    -- scDefs = defs ++ program
     initEnv = [(name, Label name) | (name, _, _) <- scDefs]
     compiledScDefs = map (`compileSuperCombinator` initEnv) scDefs
     names = map (\(n, _, _) -> n) program

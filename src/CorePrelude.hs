@@ -20,7 +20,7 @@ primitives = [
   ("True", [], Constructor 2 0),
   ("False", [], Constructor 1 0)
   ]
--- 这几个定义的是函数还是类型构造器？
+
 defs :: CoreProgram
 defs 
   = [

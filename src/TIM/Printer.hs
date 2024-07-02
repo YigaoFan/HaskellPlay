@@ -1,6 +1,6 @@
 module TIM.Printer where
 
-import TIM.Util (TimState (..), TimHeap, FramePtr (FrameAddr, FrameNull, FrameInt), TimStack, TimValueStack, TimDump, Closure, getStepsFromStats, Instruction (..), TimAddrMode (..), TimCode)
+import TIM.Util (TimState (..), TimHeap, FramePtr (FrameAddr, FrameNull, FrameInt), TimStack, TimValueStack, TimDump, Closure, getStepsFromStats, Instruction (..), TimAddrMode (..), TimCode, maxStackDepth, ValueAddrMode (..))
 import PrettyPrint (display, concat, Sequence (Newline, Indent, Append, Nil), layn, str, interleave, num)
 import Prelude hiding (concat)
 import Heap (heapLookup, heapSize)
@@ -84,7 +84,8 @@ showStats :: TimState -> Sequence
 showStats state =
   concat [
     str "Steps taken = ", num (getStepsFromStats (stats state)), Newline,
-    str "Num of frames allocated = ", num (heapSize (heap state))
+    str "Num of frames allocated = ", num (heapSize (heap state)), Newline,
+    str "Max stack depth = ", num (maxStackDepth (stats state))
   ]
 
 showInstructions :: HowMuchToPrint -> [Instruction] -> Sequence
@@ -107,12 +108,24 @@ showInstruction :: HowMuchToPrint -> Instruction -> Sequence
 showInstruction detail (Take n) = str "Take " `Append` num n
 showInstruction detail (Enter addrMode) = str "Enter " `Append` showArg detail addrMode
 showInstruction detail (Push addrMode) = str "Push " `Append` showArg detail addrMode
+showInstruction detail (PushV addrMode) = str "PushV " `Append` showValueArg detail addrMode
+showInstruction detail Return = str "Return"
+showInstruction detail (Op op) = str "Op " `Append` str (show op)
+showInstruction detail (Cond code1 code2) = concat [
+  str "Cond", Newline,
+  Indent (interleave Newline (map (showInstruction detail) code1)), Newline,
+  Indent (interleave Newline (map (showInstruction detail) code2))
+  ]
 
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n
 showArg detail (Code is) = str "Code " `Append` showInstructions detail is
 showArg detail (Label name) = str "Label " `Append` str name
 showArg detail (IntConst n) = str "IntConst " `Append` num n
+
+showValueArg :: HowMuchToPrint -> ValueAddrMode -> Sequence
+showValueArg detail FramePtr = str "FramePtr"
+showValueArg detail (IntValueConst n) = str "IntValueConst " `Append` num n
 
 showSuperCombinator :: (Name, TimCode) -> Sequence
 showSuperCombinator (name, code) =

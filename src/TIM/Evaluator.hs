@@ -1,8 +1,8 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (Take, Push, Enter), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode)
+import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack)
 import qualified Data.List as DL (take)
-import Prelude hiding (lookup, take)
+import Prelude hiding (lookup, take, return)
 import Prelude (Bool(False))
 import Heap (heapAlloc, heapLookup, lookup)
 import Debug.Trace (trace)
@@ -16,7 +16,7 @@ eval state = state : remain
     nextState = doAdmin (step state)
 
 doAdmin :: TimState -> TimState
-doAdmin s = setStats (incStatSteps (stats s)) s
+doAdmin s = setStats (recordStackDepth (length (stack s)) (incStatSteps (stats s))) s
 
 final :: TimState -> Bool
 final s = null (code s)
@@ -36,6 +36,9 @@ dispatch (Enter (Label l)) = trace ("enter " ++ l)  enterLabel l
 dispatch (Enter (Arg k)) = enterArg k
 dispatch (Enter (Code i)) = enterCode i
 dispatch (Enter (IntConst n)) = enterIntConst n
+dispatch (PushV FramePtr) = pushVFramePtr
+dispatch (PushV (IntValueConst n)) = pushVIntValueConst n
+dispatch Return = return
 
 take :: Int -> TimState -> TimState
 take n state =
@@ -95,3 +98,20 @@ enterIntConst n state =
   if not (null (code state))
     then codeShouldBeEmptyError
     else setCode intCode (setFramePtr (FrameInt n) state)
+
+pushVFramePtr :: TimState -> TimState
+pushVFramePtr state =
+  let FrameInt n = framePtr state in
+    setValueStack (n : valueStack state) state
+
+pushVIntValueConst :: Int -> TimState -> TimState
+pushVIntValueConst n state =
+  setValueStack (n : valueStack state) state
+
+return :: TimState -> TimState
+return state =
+  if not (null (code state))
+    then codeShouldBeEmptyError
+    else let (i, f) = head (stack state) in
+      setFramePtr f (setCode i state)
+

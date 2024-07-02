@@ -35,13 +35,18 @@ setStats stats state = state { stats = stats }
 
 data Instruction = Take Int |
   Enter TimAddrMode |
-  Push TimAddrMode
+  Push TimAddrMode |
+  PushV ValueAddrMode |
+  Return |
+  Op Op |
+  Cond [Instruction] [Instruction]
 
 data TimAddrMode = Arg Int |
   Label [Char] |
   Code TimCode |
   IntConst Int
-intCode = []
+data ValueAddrMode = FramePtr | IntValueConst Int
+intCode = [PushV FramePtr, Return]
 
 data FramePtr = FrameAddr Addr |
   FrameInt Int |
@@ -53,16 +58,15 @@ type Closure = (TimCode, FramePtr)
 type TimHeap = Heap Frame
 type Frame = [Closure]
 type CodeStore = [(Name, TimCode)]
-type TimStats = Int
-data TimValueStack = DummyTimValueStack
+type TimStats = (Int, Int)
+type TimValueStack = [Int]
 data TimDump = DummyTimDump
 
+data Op = Add | Sub | Mul | Div | Neg | Gr | GrEq | Lt | LtEq | Eq | NotEq deriving (Eq, Show)
+
 initStack = []
-initValueStack = DummyTimValueStack
+initValueStack = []
 initDump = DummyTimDump
-initStats :: Int
-initStats = 0
-incStatSteps s = s + 1
 
 allocateFrame :: TimHeap -> Frame -> (TimHeap, FramePtr)
 allocateFrame heap frame = (h, FrameAddr a)
@@ -83,5 +87,17 @@ codeLookup :: CodeStore -> Name -> TimCode
 codeLookup codeStore name =
   lookup codeStore name (error ("not found code for label " ++ name))
 
+initStats :: TimStats
+initStats = (0, 0)
+
+incStatSteps :: TimStats -> TimStats
+incStatSteps (stepCount, maxStackDepth) = (stepCount + 1, maxStackDepth)
+
 getStepsFromStats :: TimStats -> Int
-getStepsFromStats stats = stats
+getStepsFromStats (stepCount, _) = stepCount
+
+recordStackDepth :: Int -> TimStats -> TimStats
+recordStackDepth depth (stepCount, maxStackDepth) = (stepCount, max depth maxStackDepth)
+
+maxStackDepth :: TimStats -> Int
+maxStackDepth (_, d) = d
