@@ -128,15 +128,33 @@ src23 = "main = negate 3"
 
 src24 = "main = s left left 4"
 
+-- need comment id definition in CorePrelude
 src25 =
   "id = s left left\n\
   \id1 = id id\n\
   \main = id1 4"
 
+src26 =
+  "four = 2 * 2\n\
+  \main = four + four"
+
+src27 =
+  "fac n = if n 1 (n * fac (n - 1))\n\
+  \nothing n = 0\n\
+  \main = nothing (fac 3)"
+
+src28 =
+  "fac n = if n 1 (n * fac (n - 1))\n\
+  \main = fac 3"
+
+src29 =
+  "fac n = if n 1 (n * fac (n - 1))\n\
+  \main = negate 1"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src25
+  let r = run src28
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 

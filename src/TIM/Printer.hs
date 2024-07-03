@@ -64,7 +64,9 @@ showStack stack =
   ]
 
 showValueStack :: TimValueStack -> Sequence
-showValueStack valueStack = Nil
+showValueStack valueStack = concat [
+  str "VStack: [ ", interleave (str ", ") (map num valueStack), str " ]"
+    ]
 
 showDump :: TimDump -> Sequence
 showDump dump = Nil

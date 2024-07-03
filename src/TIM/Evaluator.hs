@@ -1,6 +1,6 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack)
+import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..))
 import qualified Data.List as DL (take)
 import Prelude hiding (lookup, take, return)
 import Prelude (Bool(False))
@@ -32,13 +32,19 @@ dispatch (Push (Arg k)) = pushArg k
 dispatch (Push (Label l)) = pushLabel l
 dispatch (Push (Code i)) = pushCode i
 dispatch (Push (IntConst n)) = pushIntConst n
-dispatch (Enter (Label l)) = trace ("enter " ++ l)  enterLabel l
+dispatch (Enter (Label l)) = enterLabel l -- trace ("enter " ++ l)
 dispatch (Enter (Arg k)) = enterArg k
 dispatch (Enter (Code i)) = enterCode i
 dispatch (Enter (IntConst n)) = enterIntConst n
 dispatch (PushV FramePtr) = pushVFramePtr
 dispatch (PushV (IntValueConst n)) = pushVIntValueConst n
 dispatch Return = return
+dispatch (Op Add) = primitive2OnValueStack (+)
+dispatch (Op Sub) = primitive2OnValueStack (-)
+dispatch (Op Mul) = primitive2OnValueStack (*)
+dispatch (Op Div) = primitive2OnValueStack div
+dispatch (Op Neg) = primitiveOnValueStack negate
+dispatch (Cond code1 code2) = cond code1 code2
 
 take :: Int -> TimState -> TimState
 take n state =
@@ -112,6 +118,29 @@ return :: TimState -> TimState
 return state =
   if not (null (code state))
     then codeShouldBeEmptyError
-    else let (i, f) = head (stack state) in
-      setFramePtr f (setCode i state)
+    else let (i, f) = head stk in
+      setFramePtr f 
+        (setCode i 
+          (setStack (tail stk) state))
+      where stk = stack state
 
+primitiveOnValueStack :: (Int -> Int) -> (TimState -> TimState)
+primitiveOnValueStack op state =
+  setValueStack (op a : as) state
+  where
+    a : as = valueStack state
+
+primitive2OnValueStack :: (Int -> Int -> Int) -> (TimState -> TimState)
+primitive2OnValueStack op state =
+  setValueStack (op a1 a2 : as) state
+  where a1 : a2 : as = valueStack state
+
+cond :: TimCode -> TimCode -> TimState -> TimState
+cond code1 code2 state =
+  if not (null (code state))
+    then codeShouldBeEmptyError
+    else let a : as = valueStack state in
+      (if a == 0
+        then setCode code1
+        else setCode code2) 
+        (setValueStack as state)

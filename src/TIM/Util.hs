@@ -64,7 +64,7 @@ data TimDump = DummyTimDump
 
 data Op = Add | Sub | Mul | Div | Neg | Gr | GrEq | Lt | LtEq | Eq | NotEq deriving (Eq, Show)
 
-initStack = []
+initStack = [([], FrameNull)]
 initValueStack = []
 initDump = DummyTimDump
 
