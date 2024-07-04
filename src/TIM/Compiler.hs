@@ -69,7 +69,7 @@ compiledPrimitives = [
   ("if", [
     Take 3,
     Push (Code [
-      Push (Code [Return]),
+      -- Push (Code [Return]), 为什么不影响
       Cond [Enter (Arg 2)] [Enter (Arg 3)]]), -- 这个不用加 Return 吗？
     Enter (Arg 1)
     ])

@@ -143,18 +143,17 @@ src27 =
   \nothing n = 0\n\
   \main = nothing (fac 3)"
 
-src28 =
-  "fac n = if n 1 (n * fac (n - 1))\n\
-  \main = fac 3"
+src28 = -- 按理说，下面这个不加括号也可以出结果啊，看来有bug。难道是拿参数的时候出了问题？
+  "fac n = if n 1 fac (n - 1)\n\
+  \main = fac 0"
 
 src29 =
-  "fac n = if n 1 (n * fac (n - 1))\n\
-  \main = negate 1"
+  "main = negate 1"
 
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src28
+  let r = fullRun src28
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
