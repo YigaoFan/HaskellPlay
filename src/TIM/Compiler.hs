@@ -14,8 +14,8 @@ compile program = TimState [Enter (Label "main")] FrameNull initStack initValueS
   where
     -- scDefs = defs ++ primitives ++ program
     scDefs = defs ++ program
-    initEnv = [(n, Label n) | n <- map fst compiledPrimitives ++ map (\(n, _, _) -> n) scDefs]
-    compiledScDefs = compiledPrimitives ++ map (`compileSuperCombinator` initEnv) scDefs
+    initEnv = [(n, Label n) | n <- map (\(n, _, _) -> n) scDefs]
+    compiledScDefs = map (`compileSuperCombinator` initEnv) scDefs
     names = map (\(n, _, _) -> n) program
 
 compileSuperCombinator :: CoreSuperCombinator -> TimEnvironment -> (Name, TimCode)
@@ -30,7 +30,8 @@ compileR e@(Application (Var "negate") _) env = compileB e env [Return]
 compileR e@(Application (Application (Var op) e1) e2) env
   | op `elem` domain primitiveOpMap = compileB e env [Return]
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env =
-  compileB e1 env [Cond (compileB e2 env [Return]) (compileB e3 env [Return])] -- 这里为什么又要加 Return 了？
+  compileB e1 env [Cond (compileR e2 env) (compileR e3 env)] -- 这里为什么又要加 Return 了？因为这里不能用 B，要用 R
+  -- Enter IntConst 1（不加） 和 PushV IntValueConst 1 的区别
 compileR (Application e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR e@(Num {}) env = [Enter (compileA e env)]
 compileR e@(Var {}) env = [Enter (compileA e env)]
@@ -69,6 +70,8 @@ primitiveOpMap = [
   ("==", Eq),
   ("/=", NotEq)
   ]
+
+-- not full application will call this，对吗？如果 f n = if n，别处可以 f 3 1 2 吗？
 compiledPrimitives :: [(Name, TimCode)]
 compiledPrimitives = [
   ("+", [
