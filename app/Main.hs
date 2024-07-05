@@ -144,8 +144,8 @@ src27 =
   \main = nothing (fac 3)"
 
 src28 = -- 按理说，下面这个不加括号也可以出结果啊，看来有bug。难道是拿参数的时候出了问题？
-  "fac n = if n 1 fac (n - 1)\n\
-  \main = fac 0"
+  "fac n = if n 1 (n * fac (n - 1))\n\
+  \main = fac 3"
 
 src29 =
   "main = negate 1"
