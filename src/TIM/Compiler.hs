@@ -26,14 +26,13 @@ compileSuperCombinator (name, paraNames, body) env =
   where n = length paraNames
 
 compileR :: CoreExpr -> TimEnvironment -> TimCode
+compileR e@(Num {}) env = compileB e env [Return]
 compileR e@(Application (Var "negate") _) env = compileB e env [Return]
 compileR e@(Application (Application (Var op) e1) e2) env
   | op `elem` domain primitiveOpMap = compileB e env [Return]
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env =
-  compileB e1 env [Cond (compileR e2 env) (compileR e3 env)] -- 这里为什么又要加 Return 了？因为这里不能用 B，要用 R
-  -- Enter IntConst 1（不加） 和 PushV IntValueConst 1 的区别
+  compileB e1 env [Cond (compileR e2 env) (compileR e3 env)]
 compileR (Application e1 e2) env = Push (compileA e2 env) : compileR e1 env
-compileR e@(Num {}) env = [Enter (compileA e env)]
 compileR e@(Var {}) env = [Enter (compileA e env)]
 compileR e env = error ("compileR: cannot compile " ++ show e)
 

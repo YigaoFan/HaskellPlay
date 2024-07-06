@@ -143,17 +143,20 @@ src27 =
   \nothing n = 0\n\
   \main = nothing (fac 3)"
 
-src28 = -- 按理说，下面这个不加括号也可以出结果啊，看来有bug。难道是拿参数的时候出了问题？
+src28 = -- 按理说，下面这个不加括号也可以出结果啊，看来有bug。难道是拿参数的时候出了问题？是出了结果，然后它继续算最后的那一项
   "fac n = if n 1 (n * fac (n - 1))\n\
   \main = fac 0"
 
 src29 =
   "main = negate 1"
 
+src30 =
+  "fib n = if (n < 2) 1 (fib (n - 1) + fib (n - 2))\n\
+  \main = fib 5"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src28
+  let r = fullRun src30
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 

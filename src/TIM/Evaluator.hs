@@ -44,6 +44,12 @@ dispatch (Op Sub) = primitive2OnValueStack (-)
 dispatch (Op Mul) = primitive2OnValueStack (*)
 dispatch (Op Div) = primitive2OnValueStack div
 dispatch (Op Neg) = primitiveOnValueStack negate
+dispatch (Op Lt) = primitive2OnValueStack (\a -> bool2Int . (<) a)
+dispatch (Op LtEq) = primitive2OnValueStack (\a -> bool2Int . (<=) a)
+dispatch (Op Gr) = primitive2OnValueStack (\a -> bool2Int . (>) a)
+dispatch (Op GrEq) = primitive2OnValueStack (\a -> bool2Int . (>=) a)
+dispatch (Op Eq) = primitive2OnValueStack (\a -> bool2Int . (==) a)
+dispatch (Op NotEq) = primitive2OnValueStack (\a -> bool2Int . (/=) a)
 dispatch (Cond code1 code2) = cond code1 code2
 
 take :: Int -> TimState -> TimState
@@ -86,7 +92,7 @@ enterLabel label state =
       setCode code state
 
 enterArg :: Int -> TimState -> TimState
-enterArg k state = 
+enterArg k state =
   if not (null (code state))
     then codeShouldBeEmptyError
     else do
@@ -119,8 +125,8 @@ return state =
   if not (null (code state))
     then codeShouldBeEmptyError
     else let (i, f) = head stk in
-      setFramePtr f 
-        (setCode i 
+      setFramePtr f
+        (setCode i
           (setStack (tail stk) state))
       where stk = stack state
 
@@ -142,5 +148,8 @@ cond code1 code2 state =
     else let a : as = valueStack state in
       (if a == 0
         then setCode code1
-        else setCode code2) 
+        else setCode code2)
         (setValueStack as state)
+
+bool2Int :: Bool -> Int
+bool2Int b = if b then 0 else 1
