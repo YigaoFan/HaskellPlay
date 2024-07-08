@@ -107,7 +107,7 @@ showInstructions Full is =
   where shownInstructions = map (showInstruction Full) is
 
 showInstruction :: HowMuchToPrint -> Instruction -> Sequence
-showInstruction detail (Take n) = str "Take " `Append` num n
+showInstruction detail (Take cap n) = concat [str "Take ", num cap, num n]
 showInstruction detail (Enter addrMode) = str "Enter " `Append` showArg detail addrMode
 showInstruction detail (Push addrMode) = str "Push " `Append` showArg detail addrMode
 showInstruction detail (PushV addrMode) = str "PushV " `Append` showValueArg detail addrMode
@@ -118,6 +118,7 @@ showInstruction detail (Cond code1 code2) = concat [
   Indent (interleave Newline (map (showInstruction detail) code1)), Newline,
   Indent (interleave Newline (map (showInstruction detail) code2))
   ]
+showInstruction detail (Move n addr) = concat [str "Move ", num n, showArg detail addr]
 
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n

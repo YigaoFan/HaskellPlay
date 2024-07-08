@@ -1,11 +1,12 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..))
+import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure)
 import qualified Data.List as DL (take)
 import Prelude hiding (lookup, take, return)
 import Prelude (Bool(False))
 import Heap (heapAlloc, heapLookup, lookup)
 import Debug.Trace (trace)
+import AST (Name)
 
 eval :: TimState -> [TimState]
 eval state = state : remain
@@ -27,11 +28,9 @@ step state = dispatch i (setCode is state)
     (i : is) = code state
 
 dispatch :: Instruction -> TimState -> TimState
-dispatch (Take n) = take n
-dispatch (Push (Arg k)) = pushArg k
-dispatch (Push (Label l)) = pushLabel l
-dispatch (Push (Code i)) = pushCode i
-dispatch (Push (IntConst n)) = pushIntConst n
+dispatch (Take cap n) = take cap n
+dispatch (Move i addr) = move i addr
+dispatch (Push addr) = push addr
 dispatch (Enter (Label l)) = enterLabel l -- trace ("enter " ++ l)
 dispatch (Enter (Arg k)) = enterArg k
 dispatch (Enter (Code i)) = enterCode i
@@ -52,36 +51,58 @@ dispatch (Op Eq) = primitive2OnValueStack (\a -> bool2Int . (==) a)
 dispatch (Op NotEq) = primitive2OnValueStack (\a -> bool2Int . (/=) a)
 dispatch (Cond code1 code2) = cond code1 code2
 
-take :: Int -> TimState -> TimState
-take n state =
-  if length (stack state) < n
-    then error "Too few args for Take instruction"
-    else let (h, fPtr) = allocateFrame (heap state) cs in
+take :: Int -> Int -> TimState -> TimState
+take cap n state
+  | length (stack state) < n = error "Too few args for Take instruction"
+  | n > cap = error "Wrong take operation: n is bigger than capacity"
+  | otherwise =
+    let (h, fPtr) = allocateFrame (heap state) cs in
       setFramePtr fPtr
         (setHeap h
           (setStack remain state))
-      where
-        cs = DL.take n (stack state)
-        remain = drop n (stack state)
+  where
+      cs = DL.take n (stack state) ++ replicate (cap - n) ([], FrameNull)
+      remain = drop n (stack state)
 
-pushArg :: Int -> TimState -> TimState
-pushArg k state = do
-  let c = getClosure (heap state) (framePtr state) k
-  setStack (c : stack state) state
+closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
+closureOf (Label n) state = (codeLookup (codeStore state) n, framePtr state)
+closureOf (Code code) state = (code, framePtr state)
+closureOf (IntConst n) state = (intCode, FrameInt n)
+
+move :: Int -> TimAddrMode -> TimState -> TimState
+move to addr state =
+  setHeap (updateClosure (heap state) (framePtr state) to closure) state
+  where 
+    closure =
+      case addr of
+        Arg i -> getClosure (heap state) (framePtr state) i
+        Label n -> (codeLookup (codeStore state) n, framePtr state)
+        Code code -> (code, framePtr state)
+        IntConst n -> (intCode, FrameInt n)
+
+push :: TimAddrMode -> TimState -> TimState
+push addr state =
+  let c = closureOf addr state in
+    setStack (c : stack state) state
+
+-- pushArg :: Int -> TimState -> TimState
+-- pushArg k state = do
+--   let c = getClosure (heap state) (framePtr state) k
+--   setStack (c : stack state) state
 
 labelNotFoundError label = error ("not found label: " ++ label)
-pushLabel :: String -> TimState -> TimState
-pushLabel label state = do
-  let code = codeLookup (codeStore state) label
-  setStack ((code, framePtr state) : stack state) state
+-- pushLabel :: String -> TimState -> TimState
+-- pushLabel label state = do
+--   let code = codeLookup (codeStore state) label
+--   setStack ((code, framePtr state) : stack state) state
 
-pushCode :: TimCode -> TimState -> TimState
-pushCode code state =
-  setStack ((code, framePtr state) : stack state) state
+-- pushCode :: TimCode -> TimState -> TimState
+-- pushCode code state =
+--   setStack ((code, framePtr state) : stack state) state
 
-pushIntConst :: Int -> TimState -> TimState
-pushIntConst n state =
-  setStack ((intCode, FrameInt n) : stack state) state
+-- pushIntConst :: Int -> TimState -> TimState
+-- pushIntConst n state =
+--   setStack ((intCode, FrameInt n) : stack state) state
 
 codeShouldBeEmptyError = error "code should be empty when do enter"
 enterLabel :: String -> TimState -> TimState

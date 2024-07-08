@@ -33,13 +33,14 @@ setCodeStore codeStore state = state { codeStore = codeStore }
 setStats :: TimStats -> TimState -> TimState
 setStats stats state = state { stats = stats }
 
-data Instruction = Take Int |
+data Instruction = Take Int Int |
   Enter TimAddrMode |
   Push TimAddrMode |
   PushV ValueAddrMode |
   Return |
   Op Op |
-  Cond [Instruction] [Instruction]
+  Cond [Instruction] [Instruction] |
+  Move Int TimAddrMode
 
 data TimAddrMode = Arg Int |
   Label [Char] |
