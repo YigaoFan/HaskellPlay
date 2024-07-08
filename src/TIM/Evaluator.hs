@@ -71,38 +71,12 @@ closureOf (IntConst n) state = (intCode, FrameInt n)
 
 move :: Int -> TimAddrMode -> TimState -> TimState
 move to addr state =
-  setHeap (updateClosure (heap state) (framePtr state) to closure) state
-  where 
-    closure =
-      case addr of
-        Arg i -> getClosure (heap state) (framePtr state) i
-        Label n -> (codeLookup (codeStore state) n, framePtr state)
-        Code code -> (code, framePtr state)
-        IntConst n -> (intCode, FrameInt n)
+  setHeap (updateClosure (heap state) (framePtr state) to (closureOf addr state)) state
 
 push :: TimAddrMode -> TimState -> TimState
 push addr state =
   let c = closureOf addr state in
     setStack (c : stack state) state
-
--- pushArg :: Int -> TimState -> TimState
--- pushArg k state = do
---   let c = getClosure (heap state) (framePtr state) k
---   setStack (c : stack state) state
-
-labelNotFoundError label = error ("not found label: " ++ label)
--- pushLabel :: String -> TimState -> TimState
--- pushLabel label state = do
---   let code = codeLookup (codeStore state) label
---   setStack ((code, framePtr state) : stack state) state
-
--- pushCode :: TimCode -> TimState -> TimState
--- pushCode code state =
---   setStack ((code, framePtr state) : stack state) state
-
--- pushIntConst :: Int -> TimState -> TimState
--- pushIntConst n state =
---   setStack ((intCode, FrameInt n) : stack state) state
 
 codeShouldBeEmptyError = error "code should be empty when do enter"
 enterLabel :: String -> TimState -> TimState
