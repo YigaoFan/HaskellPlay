@@ -91,8 +91,7 @@ enterOnlySetCode :: TimAddrMode -> TimState -> TimState
 enterOnlySetCode addr state =
   if not (null (code state))
     then codeShouldBeEmptyError
-    else let is = codeOf addr state in
-      setCode is state
+    else setCode (codeOf addr state) state
   where
     codeOf (Code code) state = code
     codeOf (IntConst n) state = intCode
