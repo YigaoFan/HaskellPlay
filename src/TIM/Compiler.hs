@@ -44,7 +44,7 @@ compileR (Let False defs exp) env slotUsedCount =
     (slotUsedCount'', is) = compileR exp env' slotUsedCount'
 
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env slotUsedCount =
-  compileB e1 env slot [Cond (head codes) (codes !! 1)]
+  compileB e1 env slot [Cond (codes !! 1) (head codes)]
   where
     (slot, codes) = compileExps [e3, e2] env slotUsedCount -- 这里是不是先给 e1 让地？不用让，运行时的地在编译时已经确定
 compileR (Application e1 e2) env slotUsedCount = (slot2, Push addr : is)

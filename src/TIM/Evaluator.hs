@@ -94,7 +94,7 @@ enterOnlySetCode addr state =
     else setCode (codeOf addr state) state
   where
     codeOf (Code code) state = code
-    codeOf (IntConst n) state = intCode
+    codeOf (Label n) state = codeLookup (codeStore state) n
 
 pushVFramePtr :: TimState -> TimState
 pushVFramePtr state =
