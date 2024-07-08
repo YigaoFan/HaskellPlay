@@ -68,10 +68,6 @@ closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
 closureOf (Label n) state = (codeLookup (codeStore state) n, framePtr state)
 closureOf (Code code) state = (code, framePtr state)
 closureOf (IntConst n) state = (intCode, FrameInt n)
-codeOf (Arg i) state = fst (getClosure (heap state) (framePtr state) i)
-codeOf (Label n) state = codeLookup (codeStore state) n
-codeOf (Code code) state = code
-codeOf (IntConst n) state = intCode
 
 move :: Int -> TimAddrMode -> TimState -> TimState
 move to addr state =
@@ -90,12 +86,16 @@ enter addr state =
     else let (is, f) = closureOf addr state in
       setCode is (setFramePtr f state)
 
+-- | only for TimAddrMode(Code, IntConst) 
 enterOnlySetCode :: TimAddrMode -> TimState -> TimState
 enterOnlySetCode addr state =
   if not (null (code state))
     then codeShouldBeEmptyError
     else let is = codeOf addr state in
       setCode is state
+  where
+    codeOf (Code code) state = code
+    codeOf (IntConst n) state = intCode
 
 pushVFramePtr :: TimState -> TimState
 pushVFramePtr state =
