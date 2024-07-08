@@ -31,10 +31,10 @@ dispatch :: Instruction -> TimState -> TimState
 dispatch (Take cap n) = take cap n
 dispatch (Move i addr) = move i addr
 dispatch (Push addr) = push addr
-dispatch (Enter (Label l)) = enterLabel l -- trace ("enter " ++ l)
-dispatch (Enter (Arg k)) = enterArg k
-dispatch (Enter (Code i)) = enterCode i
-dispatch (Enter (IntConst n)) = enterIntConst n
+dispatch (Enter addr@(Arg k)) = enter addr
+dispatch (Enter addr@(IntConst n)) = enter addr
+dispatch (Enter addr@(Label l)) = enterOnlySetCode addr
+dispatch (Enter addr@(Code i)) = enterOnlySetCode addr
 dispatch (PushV FramePtr) = pushVFramePtr
 dispatch (PushV (IntValueConst n)) = pushVIntValueConst n
 dispatch Return = return
@@ -68,6 +68,10 @@ closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
 closureOf (Label n) state = (codeLookup (codeStore state) n, framePtr state)
 closureOf (Code code) state = (code, framePtr state)
 closureOf (IntConst n) state = (intCode, FrameInt n)
+codeOf (Arg i) state = fst (getClosure (heap state) (framePtr state) i)
+codeOf (Label n) state = codeLookup (codeStore state) n
+codeOf (Code code) state = code
+codeOf (IntConst n) state = intCode
 
 move :: Int -> TimAddrMode -> TimState -> TimState
 move to addr state =
@@ -79,32 +83,19 @@ push addr state =
     setStack (c : stack state) state
 
 codeShouldBeEmptyError = error "code should be empty when do enter"
-enterLabel :: String -> TimState -> TimState
-enterLabel label state =
-  if not (null (code state))
+enter :: TimAddrMode -> TimState -> TimState
+enter addr state =
+   if not (null (code state))
     then codeShouldBeEmptyError
-    else let code = codeLookup (codeStore state) label in
-      setCode code state
+    else let (is, f) = closureOf addr state in
+      setCode is (setFramePtr f state)
 
-enterArg :: Int -> TimState -> TimState
-enterArg k state =
+enterOnlySetCode :: TimAddrMode -> TimState -> TimState
+enterOnlySetCode addr state =
   if not (null (code state))
     then codeShouldBeEmptyError
-    else do
-      let (ik, fk) = getClosure (heap state) (framePtr state) k
-      setCode ik (setFramePtr fk state)
-
-enterCode :: TimCode -> TimState -> TimState
-enterCode instructions state =
-  if not (null (code state))
-    then codeShouldBeEmptyError
-    else setCode instructions state
-
-enterIntConst :: Int -> TimState -> TimState
-enterIntConst n state =
-  if not (null (code state))
-    then codeShouldBeEmptyError
-    else setCode intCode (setFramePtr (FrameInt n) state)
+    else let is = codeOf addr state in
+      setCode is state
 
 pushVFramePtr :: TimState -> TimState
 pushVFramePtr state =
