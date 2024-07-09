@@ -153,10 +153,19 @@ src29 =
 src30 =
   "fib n = if (n < 2) 1 (fib (n - 1) + fib (n - 2))\n\
   \main = fib 5"
+
+src31 =
+  "f x y z = let p = x + y in p + x + y + z\n\
+  \main = f 1 2 3"
+
+src32 =
+  "f' p x y z = p + x + y + z\n\
+  \f x y z = f' (x + y) x y z\n\
+  \main = f 1 2 3"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src30
+  let r = fullRun src32
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 

@@ -40,13 +40,13 @@ compileR (Let False defs exp) env slotUsedCount =
     n = length defs
     indexs = [slotUsedCount + 1 .. slotUsedCount + n]
     (slotUsedCount', addrs) = mapAccumL (\a b -> let (a', addr) = compileA b env a in (a', addr)) (slotUsedCount + n) (map snd defs)
-    env' = zipWith (\n i -> (n, Arg i)) (domain defs) indexs
+    env' = zipWith (\n i -> (n, Arg i)) (domain defs) indexs ++ env
     (slotUsedCount'', is) = compileR exp env' slotUsedCount'
 
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env slotUsedCount =
-  compileB e1 env slot [Cond (codes !! 1) (head codes)]
+  compileB e1 env slot [Cond (head codes) (codes !! 1)]
   where
-    (slot, codes) = compileExps [e3, e2] env slotUsedCount -- 这里是不是先给 e1 让地？不用让，运行时的地在编译时已经确定
+    (slot, codes) = compileExps [e2, e3] env slotUsedCount -- 这里是不是先给 e1 让地？不用让，运行时的地在编译时已经确定
 compileR (Application e1 e2) env slotUsedCount = (slot2, Push addr : is)
   where
     (slot1, addr) = compileA e2 env slotUsedCount
