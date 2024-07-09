@@ -162,10 +162,22 @@ src32 =
   "f' p x y z = p + x + y + z\n\
   \f x y z = f' (x + y) x y z\n\
   \main = f 1 2 3"
+
+src33 =
+  "f x = letrec p = if (x == 0) 1 q\n\
+  \   q = if (x == 0) p 2\n\
+  \  in p + q\n\
+  \main = f 1"
+
+src34 =
+  "f x = letrec a = b\n\
+  \   b = x\n\
+  \  in a\n\
+  \main = f 1"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src32
+  let r = fullRun src34
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
