@@ -45,11 +45,12 @@ showState state =
 showFrame :: TimHeap -> FramePtr -> Sequence
 showFrame heap FrameNull = str "Null frame ptr"
 showFrame heap (FrameAddr addr) =
-  concat [
-    str "Frame: <",
-    Indent (interleave Newline (map showClosure (heapLookup heap addr))),
-    str ">"
-  ]
+  let cs = heapLookup heap addr in
+    concat [
+      str "Frame: ", num (length cs), str "item(s) <",
+      Indent (interleave Newline (map showClosure cs)),
+      str ">"
+    ]
 showFrame heap (FrameInt n) =
   concat [
     str "Frame ptr (int): ", num n
@@ -107,7 +108,7 @@ showInstructions Full is =
   where shownInstructions = map (showInstruction Full) is
 
 showInstruction :: HowMuchToPrint -> Instruction -> Sequence
-showInstruction detail (Take cap n) = concat [str "Take ", num cap, num n]
+showInstruction detail (Take cap n) = concat [str "Take ", num cap, str " ", num n]
 showInstruction detail (Enter addrMode) = str "Enter " `Append` showArg detail addrMode
 showInstruction detail (Push addrMode) = str "Push " `Append` showArg detail addrMode
 showInstruction detail (PushV addrMode) = str "PushV " `Append` showValueArg detail addrMode
@@ -118,7 +119,7 @@ showInstruction detail (Cond code1 code2) = concat [
   Indent (interleave Newline (map (showInstruction detail) code1)), Newline,
   Indent (interleave Newline (map (showInstruction detail) code2))
   ]
-showInstruction detail (Move n addr) = concat [str "Move ", num n, showArg detail addr]
+showInstruction detail (Move n addr) = concat [str "Move ", num n, str " ", showArg detail addr]
 
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n

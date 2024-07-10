@@ -38,7 +38,7 @@ compileR (Let False defs exp) env usedSlots =
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
-    (usedSlots', addrs) = seqCompile compileA (map snd defs) env (usedSlots + n)
+    (usedSlots', addrs) = seqCompile False compileA (map snd defs) env (usedSlots + n)
     env' = zipWith (\n i -> (n, Arg i)) (domain defs) indexs ++ env
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Let True defs exp) env usedSlots =
@@ -47,23 +47,29 @@ compileR (Let True defs exp) env usedSlots =
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
     env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
-    (usedSlots', addrs) = seqCompile compileA (map snd defs) env' (usedSlots + n)
+    (usedSlots', addrs) = seqCompile False compileA (map snd defs) env' (usedSlots + n)
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env usedSlots =
   compileB e1 env slots [Cond (head codes) (codes !! 1)]
   where
-    (slots, codes) = seqCompile compileR [e2, e3] env usedSlots
-compileR (Application e1 e2) env usedSlots = (slots2, Push addr : is)
+    (slots, codes) = seqCompile True compileR [e2, e3] env usedSlots
+compileR (Application e1 e2) env usedSlots = (max slots1 slots2, Push addr : is)
   where
     (slots1, addr) = compileA e2 env usedSlots
-    (slots2, is) = compileR e1 env slots1
+    (slots2, is) = compileR e1 env usedSlots
 compileR e@(Var {}) env usedSlots = (slots, [Enter addr])
   where (slots, addr) = compileA e env usedSlots
 compileR e env usedSlots = error ("compileR: cannot compile " ++ show e)
 
-seqCompile :: (CoreExpr -> TimEnvironment -> Int -> (Int, a)) -> [CoreExpr] -> TimEnvironment -> Int -> (Int, [a])
-seqCompile compile exps env usedSlots =
-  mapAccumL (\a b -> let (a', code) = compile b env a in (a', code)) usedSlots exps
+seqCompile :: Bool -> (CoreExpr -> TimEnvironment -> Int -> (Int, a)) -> [CoreExpr] -> TimEnvironment -> Int -> (Int, [a])
+seqCompile slotShared compile exps env usedSlots =
+  if slotShared
+    then mapAccumL (\a b -> --这也不对，shared 的时候都是从 usedSlots 开始
+      let (a', code) = compile b env usedSlots in
+          (max a a', code))
+      usedSlots
+      exps
+    else mapAccumL (\a b -> let (a', code) = compile b env a in (a', code)) usedSlots exps
 
 makeIndirectMode :: Int -> TimAddrMode
 makeIndirectMode n = Code [Enter (Arg n)]
@@ -78,9 +84,10 @@ type Continuation = TimCode
 compileB :: CoreExpr -> TimEnvironment -> Int -> Continuation -> (Int, TimCode)
 compileB e@(Application (Var "negate") e1) env usedSlots cont = compileB e1 env usedSlots (Op Neg : cont)
 compileB (Application (Application (Var op) e1) e2) env usedSlots cont
-  | op `elem` domain primitiveOpMap =
-    let (slots1, is1) = compileB e1 env usedSlots (Op (lookup primitiveOpMap op (error "impossible")) : cont) in
-      compileB e2 env slots1 is1
+  | op `elem` domain primitiveOpMap = do
+    let (slots1, is1) = compileB e1 env usedSlots (Op (lookup primitiveOpMap op (error "impossible")) : cont)
+    let (slots2, is2) = compileB e2 env usedSlots is1
+    (max slots1 slots2, is2)
 compileB (Num n) env usedSlots cont = (usedSlots, PushV (IntValueConst n) : cont)
 compileB e env usedSlots cont =
   if null cont
