@@ -40,7 +40,8 @@ data Instruction = Take Int Int |
   Return |
   Op Op |
   Cond [Instruction] [Instruction] |
-  Move Int TimAddrMode
+  Move Int TimAddrMode |
+  PushMarker Int
 
 data TimAddrMode = Arg Int |
   Label [Char] |
@@ -61,13 +62,13 @@ type Frame = [Closure]
 type CodeStore = [(Name, TimCode)]
 type TimStats = (Int, Int)
 type TimValueStack = [Int]
-data TimDump = DummyTimDump
+type TimDump = [(FramePtr, Int, TimStack)]
 
 data Op = Add | Sub | Mul | Div | Neg | Gr | GrEq | Lt | LtEq | Eq | NotEq deriving (Eq, Show)
 
 initStack = [([], FrameNull)]
 initValueStack = []
-initDump = DummyTimDump
+initDump = []
 
 allocateFrame :: TimHeap -> Frame -> (TimHeap, FramePtr)
 allocateFrame heap frame = (h, FrameAddr a)

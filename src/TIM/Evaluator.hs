@@ -1,6 +1,6 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure)
+import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure, setDump)
 import qualified Data.List as DL (take)
 import Prelude hiding (lookup, take, return)
 import Prelude (Bool(False))
@@ -50,6 +50,7 @@ dispatch (Op GrEq) = primitive2OnValueStack (\a -> bool2Int . (>=) a)
 dispatch (Op Eq) = primitive2OnValueStack (\a -> bool2Int . (==) a)
 dispatch (Op NotEq) = primitive2OnValueStack (\a -> bool2Int . (/=) a)
 dispatch (Cond code1 code2) = cond code1 code2
+dispatch (PushMarker x) = pushMarker x
 
 take :: Int -> Int -> TimState -> TimState
 take cap n state
@@ -106,14 +107,20 @@ pushVIntValueConst n state =
   setValueStack (n : valueStack state) state
 
 return :: TimState -> TimState
-return state =
-  if not (null (code state))
-    then codeShouldBeEmptyError
-    else let (i, f) = head stk in
-      setFramePtr f
-        (setCode i
-          (setStack (tail stk) state))
-      where stk = stack state
+return state
+  | not (null (code state)) = codeShouldBeEmptyError
+  | null (valueStack state) = error "value stack should not empty when return"
+  | null stk = do
+    let (f, x, s) = head dmp
+    let h' = updateClosure (heap state) f x (intCode, FrameInt (head (valueStack state)))
+    setHeap h' (setDump (tail dmp) (setStack s (setCode [Return] state)))
+  | otherwise = let (i, f) = head stk in
+    setFramePtr f
+      (setCode i
+        (setStack (tail stk) state))
+  where
+    stk = stack state
+    dmp = dump state
 
 primitiveOnValueStack :: (Int -> Int) -> (TimState -> TimState)
 primitiveOnValueStack op state =
@@ -138,3 +145,10 @@ cond code1 code2 state =
 
 bool2Int :: Bool -> Int
 bool2Int b = if b then 0 else 1
+
+pushMarker :: Int -> TimState -> TimState
+pushMarker x state =
+  setDump ((f, x, stk) : dump state) (setStack [] state)
+  where
+    stk = stack state
+    f = framePtr state

@@ -177,10 +177,14 @@ src34 =
 
 src35 =
   "main = (let a = 1 in a) + (let a = 2 in a)"
+
+src36 =
+  "f x = x + x + x + x + x\n\
+  \main = f (1 + 2 * 3 + 5 - 6)"
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src33
+  let r = fullRun src36
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 

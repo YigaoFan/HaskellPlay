@@ -26,7 +26,7 @@ compileSuperCombinator (name, paraNames, body) env =
     else (name, Take usedSlots n : is)
   where
     n = length paraNames
-    (usedSlots, is) = compileR body (zipWith (\name i -> (name, Arg i)) paraNames [1 ..] ++ env) n
+    (usedSlots, is) = compileR body (zipWith (\name i -> (name, makeUpdateIndirectMode i)) paraNames [1 ..] ++ env) n
 
 compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
 compileR e@(Num {}) env usedSlots = compileB e env usedSlots [Return]
@@ -39,14 +39,14 @@ compileR (Let False defs exp) env usedSlots =
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
     (usedSlots', addrs) = seqCompile False compileA (map snd defs) env (usedSlots + n)
-    env' = zipWith (\n i -> (n, Arg i)) (domain defs) indexs ++ env
+    env' = zipWith (\n i -> (n, makeUpdateIndirectMode i)) (domain defs) indexs ++ env
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Let True defs exp) env usedSlots =
   (usedSlots'', zipWith Move indexs addrs ++ is)
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
-    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
+    env' = zipWith (\n i -> (n, makeUpdateIndirectMode i)) (domain defs) indexs ++ env
     (usedSlots', addrs) = seqCompile False compileA (map snd defs) env' (usedSlots + n)
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env usedSlots =
@@ -73,6 +73,8 @@ seqCompile slotShared compile exps env usedSlots =
 
 makeIndirectMode :: Int -> TimAddrMode
 makeIndirectMode n = Code [Enter (Arg n)]
+makeUpdateIndirectMode :: Int -> TimAddrMode
+makeUpdateIndirectMode n = Code [PushMarker n, Enter (Arg n)]
 
 compileA :: CoreExpr -> TimEnvironment -> Int -> (Int, TimAddrMode)
 compileA (Var name) env usedSlots = (usedSlots, lookup env name (error ("Unknown variable: " ++ name)))
