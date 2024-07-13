@@ -179,8 +179,13 @@ src35 =
   "main = (let a = 1 in a) + (let a = 2 in a)"
 
 src36 =
-  "f x = x + x + x + x + x\n\
-  \main = f (1 + 2 * 3 + 5 - 6)"
+  "f x = x + x\n\
+  \main = f (1 + 2 * 3 - 4)"
+
+src37 =
+  "compose f g x = f (g x)\n\
+  \main = 1"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do

@@ -57,14 +57,14 @@ compileR (Application e1 e2) env usedSlots = (max slots1 slots2, Push addr : is)
   where
     (slots1, addr) = compileA e2 env usedSlots
     (slots2, is) = compileR e1 env usedSlots
-compileR e@(Var {}) env usedSlots = (slots, [Enter addr])
+compileR e@(Var {}) env usedSlots = (slots, makeEnter addr)
   where (slots, addr) = compileA e env usedSlots
 compileR e env usedSlots = error ("compileR: cannot compile " ++ show e)
 
 seqCompile :: Bool -> (CoreExpr -> TimEnvironment -> Int -> (Int, a)) -> [CoreExpr] -> TimEnvironment -> Int -> (Int, [a])
 seqCompile slotShared compile exps env usedSlots =
   if slotShared
-    then mapAccumL (\a b -> --这也不对，shared 的时候都是从 usedSlots 开始
+    then mapAccumL (\a b ->
       let (a', code) = compile b env usedSlots in
           (max a a', code))
       usedSlots
@@ -75,6 +75,9 @@ makeIndirectMode :: Int -> TimAddrMode
 makeIndirectMode n = Code [Enter (Arg n)]
 makeUpdateIndirectMode :: Int -> TimAddrMode
 makeUpdateIndirectMode n = Code [PushMarker n, Enter (Arg n)]
+makeEnter :: TimAddrMode -> [Instruction]
+makeEnter (Code i) = i
+makeEnter addr = [Enter addr]
 
 compileA :: CoreExpr -> TimEnvironment -> Int -> (Int, TimAddrMode)
 compileA (Var name) env usedSlots = (usedSlots, lookup env name (error ("Unknown variable: " ++ name)))
