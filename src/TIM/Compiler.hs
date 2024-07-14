@@ -53,12 +53,16 @@ compileR (Application (Application (Application (Var "if") e1) e2) e3) env usedS
   compileB e1 env slots [Cond (head codes) (codes !! 1)]
   where
     (slots, codes) = seqCompile True compileR [e2, e3] env usedSlots
-compileR (Application e1 e2) env usedSlots = (max slots1 slots2, Push addr : is)
+compileR (Application e v@(Var {})) env usedSlots = (slots, Push (compileA v env) : is)
+  where (slots, is) = compileR e env usedSlots
+compileR (Application e n@(Num {})) env usedSlots = (slots, Push (compileA n env) : is)
+  where (slots, is) = compileR e env usedSlots
+compileR (Application e1 e2) env usedSlots = (slots2, Move argIndex addr : Push (makeIndirectMode argIndex) : is)
   where
-    (slots1, addr) = compileA e2 env usedSlots
-    (slots2, is) = compileR e1 env usedSlots
-compileR e@(Var {}) env usedSlots = (slots, makeEnter addr)
-  where (slots, addr) = compileA e env usedSlots
+    (slots1, addr) = compileU (e2, argIndex) env argIndex
+    (slots2, is) = compileR e1 env slots1
+    argIndex = usedSlots + 1
+compileR e@(Var {}) env usedSlots = (usedSlots, makeEnter (compileA e env))
 compileR e env usedSlots = error ("compileR: cannot compile " ++ show e)
 
 seqCompile :: Bool -> (b -> TimEnvironment -> Int -> (Int, a)) -> [b] -> TimEnvironment -> Int -> (Int, [a])
@@ -79,11 +83,9 @@ makeEnter :: TimAddrMode -> [Instruction]
 makeEnter (Code i) = i
 makeEnter addr = [Enter addr]
 
-compileA :: CoreExpr -> TimEnvironment -> Int -> (Int, TimAddrMode)
-compileA (Var name) env usedSlots = (usedSlots, lookup env name (error ("Unknown variable: " ++ name)))
-compileA (Num n) env usedSlots = (usedSlots, IntConst n)
-compileA e env usedSlots = (slots, Code is)
-  where (slots, is) = compileR e env usedSlots
+compileA :: CoreExpr -> TimEnvironment -> TimAddrMode
+compileA (Var name) env = lookup env name (error ("Unknown variable: " ++ name))
+compileA (Num n) env = IntConst n
 
 type Continuation = TimCode
 compileB :: CoreExpr -> TimEnvironment -> Int -> Continuation -> (Int, TimCode)
@@ -100,8 +102,10 @@ compileB e env usedSlots cont =
     else let (slots, is) = compileR e env usedSlots in (slots, Push (Code cont) : is)
 
 compileU :: (CoreExpr, Int) -> TimEnvironment -> Int -> (Int, TimAddrMode)
+compileU (Num n, slot) env usedSlots = (usedSlots, IntConst n)
 compileU (e, slot) env usedSlots = (slots', Code (PushMarker slot : is))
   where (slots', is) = compileR e env usedSlots
+
 primitiveOpMap :: [(Name, Op)]
 primitiveOpMap = [
   ("+", Add),
