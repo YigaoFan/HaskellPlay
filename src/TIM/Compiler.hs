@@ -25,7 +25,7 @@ compileSuperCombinator (name, paraNames, body) env =
     then (name, is)
     else (name, Take usedSlots n : is)
   where
-    n = length paraNames
+    n = length paraNames -- prefix each env item with PushMarker? TODO check
     (usedSlots, is) = compileR body (zipWith (\name i -> (name, makeUpdateIndirectMode i)) paraNames [1 ..] ++ env) n
 
 compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
@@ -38,16 +38,16 @@ compileR (Let False defs exp) env usedSlots =
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
-    (usedSlots', addrs) = seqCompile False compileA (map snd defs) env (usedSlots + n)
-    env' = zipWith (\n i -> (n, makeUpdateIndirectMode i)) (domain defs) indexs ++ env
+    (usedSlots', addrs) = seqCompile False compileU (zip (map snd defs) indexs) env (usedSlots + n)
+    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Let True defs exp) env usedSlots =
   (usedSlots'', zipWith Move indexs addrs ++ is)
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
-    env' = zipWith (\n i -> (n, makeUpdateIndirectMode i)) (domain defs) indexs ++ env
-    (usedSlots', addrs) = seqCompile False compileA (map snd defs) env' (usedSlots + n)
+    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
+    (usedSlots', addrs) = seqCompile False compileU (zip (map snd defs) indexs) env' (usedSlots + n)
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env usedSlots =
   compileB e1 env slots [Cond (head codes) (codes !! 1)]
@@ -61,7 +61,7 @@ compileR e@(Var {}) env usedSlots = (slots, makeEnter addr)
   where (slots, addr) = compileA e env usedSlots
 compileR e env usedSlots = error ("compileR: cannot compile " ++ show e)
 
-seqCompile :: Bool -> (CoreExpr -> TimEnvironment -> Int -> (Int, a)) -> [CoreExpr] -> TimEnvironment -> Int -> (Int, [a])
+seqCompile :: Bool -> (b -> TimEnvironment -> Int -> (Int, a)) -> [b] -> TimEnvironment -> Int -> (Int, [a])
 seqCompile slotShared compile exps env usedSlots =
   if slotShared
     then mapAccumL (\a b ->
@@ -99,6 +99,9 @@ compileB e env usedSlots cont =
     then compileR e env usedSlots
     else let (slots, is) = compileR e env usedSlots in (slots, Push (Code cont) : is)
 
+compileU :: (CoreExpr, Int) -> TimEnvironment -> Int -> (Int, TimAddrMode)
+compileU (e, slot) env usedSlots = (slots', Code (PushMarker slot : is))
+  where (slots', is) = compileR e env usedSlots
 primitiveOpMap :: [(Name, Op)]
 primitiveOpMap = [
   ("+", Add),
