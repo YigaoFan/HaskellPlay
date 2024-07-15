@@ -57,7 +57,7 @@ compileR (Application e v@(Var {})) env usedSlots = (slots, Push (compileA v env
   where (slots, is) = compileR e env usedSlots
 compileR (Application e n@(Num {})) env usedSlots = (slots, Push (compileA n env) : is)
   where (slots, is) = compileR e env usedSlots
-compileR (Application e1 e2) env usedSlots = (slots2, Move argIndex addr : Push (makeIndirectMode argIndex) : is)
+compileR (Application e1 e2) env usedSlots = (slots2, Move argIndex addr : Push (makeIndirectMode argIndex) : is) -- 这也没有可以直接复制啊，吧？直接复制这里是什么意思？
   where
     (slots1, addr) = compileU (e2, argIndex) env argIndex
     (slots2, is) = compileR e1 env slots1

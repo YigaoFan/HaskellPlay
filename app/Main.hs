@@ -186,10 +186,18 @@ src37 =
   "compose f g x = f (g x)\n\
   \main = 1"
 
+src38 =
+  "main = let x = 1 in x * x * x"
+
+src39 =
+  "mul x y z = x * y * z\n\
+  \cub x = mul x x x\n\
+  \main = cub (1 + 2)"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src36
+  let r = fullRun src39
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
