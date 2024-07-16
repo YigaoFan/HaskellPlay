@@ -14,7 +14,8 @@ compile :: CoreProgram -> TimState
 compile program = TimState [Enter (Label "main")] FrameNull initStack initValueStack initDump initHeap compiledScDefs initStats
   where
     -- scDefs = defs ++ primitives ++ program
-    scDefs = defs ++ program
+    -- scDefs = defs ++ program
+    scDefs = program
     initEnv = [(n, Label n) | n <- map (\(n, _, _) -> n) scDefs]
     compiledScDefs = map (`compileSuperCombinator` initEnv) scDefs
     names = map (\(n, _, _) -> n) program
@@ -23,9 +24,9 @@ compileSuperCombinator :: CoreSuperCombinator -> TimEnvironment -> (Name, TimCod
 compileSuperCombinator (name, paraNames, body) env =
   if n == 0 && usedSlots == 0
     then (name, is)
-    else (name, Take usedSlots n : is)
+    else (name, UpdateMarkers n : Take usedSlots n : is)
   where
-    n = length paraNames -- prefix each env item with PushMarker? TODO check，可以直接拷贝，书上说拿参数的时候
+    n = length paraNames
     (usedSlots, is) = compileR body (zipWith (\name i -> (name, Arg i)) paraNames [1 ..] ++ env) n
 
 compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
@@ -124,35 +125,41 @@ primitiveOpMap = [
 compiledPrimitives :: [(Name, TimCode)]
 compiledPrimitives = [
   ("+", [
+    UpdateMarkers 2,
     Take 2 2,
     Push (Code [
       Push (Code [Op Add, Return]),
       Enter (Arg 1)]),
     Enter (Arg 2)]),
   ("-", [
+    UpdateMarkers 2,
     Take 2 2,
     Push (Code [
       Push (Code [Op Sub, Return]),
       Enter (Arg 1)]),
     Enter (Arg 2)]),
   ("*", [
+    UpdateMarkers 2,
     Take 2 2,
     Push (Code [
       Push (Code [Op Mul, Return]),
       Enter (Arg 1)]),
     Enter (Arg 2)]),
   ("/", [
+    UpdateMarkers 2,
     Take 2 2,
     Push (Code [
       Push (Code [Op Div, Return]),
       Enter (Arg 1)]),
     Enter (Arg 2)]),
   ("negate", [
+    UpdateMarkers 1,
     Take 1 1,
     Push (Code [Op Neg, Return]),
     Enter (Arg 1)
     ]),
   ("if", [
+    UpdateMarkers 3,
     Take 3 3,
     Push (Code [
       Cond [Enter (Arg 2)] [Enter (Arg 3)]]), -- 这个不用加 Return 吗？

@@ -51,6 +51,7 @@ dispatch (Op Eq) = primitive2OnValueStack (\a -> bool2Int . (==) a)
 dispatch (Op NotEq) = primitive2OnValueStack (\a -> bool2Int . (/=) a)
 dispatch (Cond code1 code2) = cond code1 code2
 dispatch (PushMarker x) = pushMarker x
+dispatch (UpdateMarkers n) = updateMarker n
 
 take :: Int -> Int -> TimState -> TimState
 take cap n state
@@ -152,3 +153,18 @@ pushMarker x state =
   where
     stk = stack state
     f = framePtr state
+
+updateMarker :: Int -> TimState -> TimState
+updateMarker n state
+  | length stk >= n = state
+  | otherwise =
+    setHeap h''
+      (setStack (stk ++ s)
+        (setCode (UpdateMarkers n : code state)
+          (setDump (tail dmp) state)))
+  where
+    dmp = dump state
+    stk = stack state
+    (f, x, s) = head dmp -- 如果参数当前就是不够的呢？这里能处理好吗？
+    (h', f') = allocateFrame (heap state) stk
+    h'' = updateClosure h' f x (map (Push . Arg) [length stk .. 1] ++ code state, f')

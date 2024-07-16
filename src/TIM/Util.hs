@@ -41,7 +41,8 @@ data Instruction = Take Int Int |
   Op Op |
   Cond [Instruction] [Instruction] |
   Move Int TimAddrMode |
-  PushMarker Int
+  PushMarker Int |
+  UpdateMarkers Int
 
 data TimAddrMode = Arg Int |
   Label [Char] |

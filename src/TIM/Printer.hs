@@ -121,6 +121,7 @@ showInstruction detail (Cond code1 code2) = concat [
   ]
 showInstruction detail (Move n addr) = concat [str "Move ", num n, str " ", showArg detail addr]
 showInstruction detail (PushMarker n) = concat [str "PushMarker ", num n]
+showInstruction detail (UpdateMarkers n) = concat [str "UpdateMarkers ", num n]
 
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n
