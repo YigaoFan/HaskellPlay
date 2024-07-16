@@ -25,8 +25,8 @@ compileSuperCombinator (name, paraNames, body) env =
     then (name, is)
     else (name, Take usedSlots n : is)
   where
-    n = length paraNames -- prefix each env item with PushMarker? TODO check
-    (usedSlots, is) = compileR body (zipWith (\name i -> (name, makeUpdateIndirectMode i)) paraNames [1 ..] ++ env) n
+    n = length paraNames -- prefix each env item with PushMarker? TODO check，可以直接拷贝，书上说拿参数的时候
+    (usedSlots, is) = compileR body (zipWith (\name i -> (name, Arg i)) paraNames [1 ..] ++ env) n
 
 compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
 compileR e@(Num {}) env usedSlots = compileB e env usedSlots [Return]
