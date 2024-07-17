@@ -15,19 +15,22 @@ compile program = TimState [Enter (Label "main")] FrameNull initStack initValueS
   where
     -- scDefs = defs ++ primitives ++ program
     -- scDefs = defs ++ program
-    scDefs = program
+    scDefs = defs ++ program
     initEnv = [(n, Label n) | n <- map (\(n, _, _) -> n) scDefs]
     compiledScDefs = map (`compileSuperCombinator` initEnv) scDefs
     names = map (\(n, _, _) -> n) program
 
 compileSuperCombinator :: CoreSuperCombinator -> TimEnvironment -> (Name, TimCode)
-compileSuperCombinator (name, paraNames, body) env =
-  if n == 0 && usedSlots == 0
-    then (name, is)
-    else (name, UpdateMarkers n : Take usedSlots n : is)
+compileSuperCombinator (name, paraNames, body) env
+  | usedSlots == 0 = (name, is)
+  | paraCount == 0 = (name, Take usedSlots paraCount : is)
+  | otherwise = (name, UpdateMarkers paraCount : Take usedSlots paraCount : is)
   where
-    n = length paraNames
-    (usedSlots, is) = compileR body (zipWith (\name i -> (name, Arg i)) paraNames [1 ..] ++ env) n
+      paraCount = length paraNames
+      (usedSlots, is)
+        = compileR
+            body (zipWith (\ name i -> (name, Arg i)) paraNames [1 .. ] ++ env)
+            paraCount
 
 compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
 compileR e@(Num {}) env usedSlots = compileB e env usedSlots [Return]

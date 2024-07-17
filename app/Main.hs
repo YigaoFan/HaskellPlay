@@ -194,10 +194,22 @@ src39 =
   \cub x = mul x x x\n\
   \main = cub (1 + 2)"
 
+src40 =
+  "add a b = a + b\n\
+  \twice f x = f (f x)\n\
+  \g x = add (x * x)\n\
+  \main = twice (g 3) 4"
+
+src41 =
+  "pair x y f = f x y\n\
+  \fst p = p left\n\
+  \snd p = p right\n\
+  \main = let w = if (2 * 3 > 4) (pair 2 3) (pair 3 2) in (fst w) * (snd w)"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src39
+  let r = fullRun src41
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
