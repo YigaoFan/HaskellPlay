@@ -165,6 +165,7 @@ updateMarkers n state
   where
     dmp = dump state
     stk = stack state
-    (f, x, s) = head dmp -- 如果参数当前就是不够的呢？这里能处理好吗？
+    m = length stk
+    (f, x, s) = head dmp
     (h', f') = allocateFrame (heap state) stk
-    h'' = updateClosure h' f x (map (Push . Arg) [length stk .. 1] ++ UpdateMarkers n : code state, f')
+    h'' = updateClosure h' f x (map (Push . Arg) [m, m - 1 .. 1] ++ UpdateMarkers n : code state, f')

@@ -204,7 +204,7 @@ src41 =
   "pair x y f = f x y\n\
   \fst p = p left\n\
   \snd p = p right\n\
-  \main = let w = if (2 * 3 > 4) (pair 2 3) (pair 3 2) in (fst w) * (snd w)"
+  \main = let w = if (5 > 4) (pair 2 3) (pair 3 2) in (fst w) * (snd w)"
 
 -- TODO 实现下 case
 main :: IO ()
