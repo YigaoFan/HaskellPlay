@@ -43,14 +43,14 @@ compileR (Let False defs exp) env usedSlots =
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
     (usedSlots', addrs) = seqCompile False compileU (zip (map snd defs) indexs) env (usedSlots + n)
-    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
+    env' = zipWith (\n i -> (n, Arg i)) (domain defs) indexs ++ env
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Let True defs exp) env usedSlots =
   (usedSlots'', zipWith Move indexs addrs ++ is)
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
-    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
+    env' = zipWith (\n i -> (n, Arg i)) (domain defs) indexs ++ env
     (usedSlots', addrs) = seqCompile False compileU (zip (map snd defs) indexs) env' (usedSlots + n)
     (usedSlots'', is) = compileR exp env' usedSlots'
 compileR (Application (Application (Application (Var "if") e1) e2) e3) env usedSlots =

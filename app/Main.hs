@@ -205,11 +205,18 @@ src41 =
   \fst p = p left\n\
   \snd p = p right\n\
   \main = let w = if (5 > 4) (pair 2 3) (pair 3 2) in (fst w) * (snd w)"
+  
+src42 =
+  "main = let a = 1 + 2 * 3 in (a + 1) * (a - 1)"
+
+src43 =
+  "f x = x\n\
+  \main = let a = 1 + 2 * 3 in (f (a + 1)) * (f (a - 1))"
 
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src41
+  let r = fullRun src43
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
