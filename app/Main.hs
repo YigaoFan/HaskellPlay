@@ -213,10 +213,14 @@ src43 =
   "f x = x\n\
   \main = let a = 1 + 2 * 3 in (f (a + 1)) * (f (a - 1))"
 
+src44 =
+  "f x y = x + y\n\
+  \main = let a = 1 + 2 * 3 in f a a"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src43
+  let r = fullRun src44
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
 
