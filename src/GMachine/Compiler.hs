@@ -93,7 +93,7 @@ compileC e env = error ("not handled in compileC " ++ show e)
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler -> (Int -> GmCode) -> GmCompiler
 compileLetrec compileDef defs compileExp cleanStack exp env =
   Alloc n :
-  concat (zipWith (\i e -> compileDef (snd e) env' ++ [Update i]) [n - 1 .. 0] defs) ++
+  concat (zipWith (\i e -> compileDef (snd e) env' ++ [Update i]) [n - 1, n -2 .. 0] defs) ++
   compileExp exp env' ++
   cleanStack n
   where
