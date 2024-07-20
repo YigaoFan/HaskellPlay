@@ -1,24 +1,31 @@
 module TIM.Compiler where
 
-import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (..))
+import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (..), isFullApplication)
 import TIM.Util (TimState (TimState), Instruction (..), TimAddrMode (..), FramePtr (FrameNull), initStack, initValueStack, initDump, initStats, TimCode, Op (..), Closure, ValueAddrMode (IntValueConst))
 import Heap (lookup, initHeap)
 import Prelude hiding (lookup)
 import CorePrelude (primitives, defs)
 import Util (domain)
 import Data.List (mapAccumL)
+import qualified Data.Bifunctor
+import Debug.Trace (trace)
 
-type TimEnvironment = [(Name, TimAddrMode)]
+-- | Int is parameters count
+type TimEnvironment = [(Name, (TimAddrMode, Int))]
 
 compile :: CoreProgram -> TimState
-compile program = TimState [Enter (Label "main")] FrameNull initStack initValueStack initDump initHeap compiledScDefs initStats
+compile program = TimState [Enter (Label "main")] FrameNull initStack initValueStack initDump initHeap (compiledScDefs ++ map (\(n, is) -> (n ++ "_fullApp", removeUpdaters is)) compiledScDefs) initStats
   where
     -- scDefs = defs ++ primitives ++ program
-    -- scDefs = defs ++ program
-    scDefs = defs ++ program
-    initEnv = [(n, Label n) | n <- map (\(n, _, _) -> n) scDefs]
-    compiledScDefs = map (`compileSuperCombinator` initEnv) scDefs
-    names = map (\(n, _, _) -> n) program
+    -- scDefs = defs ++ program    
+    scDefs = program
+    initEnv = [(n, (Label n, paras)) | (n, paras) <- map (\(n, paras, _) -> (n, length paras)) scDefs]
+    fullAppEnv = map (\(n, info) -> let n' = n ++ "_fullApp" in (n', (Label n', snd info))) initEnv
+    compiledScDefs = map (`compileSuperCombinator` (initEnv ++ fullAppEnv)) scDefs
+
+removeUpdaters :: TimCode -> TimCode
+removeUpdaters ((UpdateMarkers _) : xs) = xs
+removeUpdaters xs = xs
 
 compileSuperCombinator :: CoreSuperCombinator -> TimEnvironment -> (Name, TimCode)
 compileSuperCombinator (name, paraNames, body) env
@@ -29,45 +36,62 @@ compileSuperCombinator (name, paraNames, body) env
       paraCount = length paraNames
       (usedSlots, is)
         = compileR
-            body (zipWith (\ name i -> (name, Arg i)) paraNames [1 .. ] ++ env)
+            body (zipWith (\name i -> (name, (Arg i, 0))) paraNames [1 .. ] ++ env)
             paraCount
 
+data ArgStatus = Full | Partial | Unknown
 compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
-compileR e@(Num {}) env usedSlots = compileB e env usedSlots [Return]
-compileR e@(Application (Var "negate") _) env usedSlots = compileB e env usedSlots [Return]
-compileR e@(Application (Application (Var op) e1) e2) env usedSlots
+compileR e@(Application e1 e2) env =
+  inCompileR
+    e
+    (if isFullApplication e1 1 (\n -> snd $ lookup env n (error ("Unknown variable: " ++ n))) then Full else Partial)
+    env
+compileR e@(Let {}) env =
+  inCompileR
+    e
+    (if isFullApplication e 0 (\n -> snd $ lookup env n (error ("Unknown variable: " ++ n))) then Full else Partial)
+    env
+compileR e env = inCompileR e Unknown env
+
+-- + if 这些可以 partial application 吗？可以，下面有 compiledPrimitives，外面有 primitives
+inCompileR :: CoreExpr -> ArgStatus -> TimEnvironment -> Int -> (Int, TimCode)
+inCompileR e@(Num {}) _ env usedSlots = compileB e env usedSlots [Return]
+inCompileR e@(Application (Var "negate") _) _ env usedSlots = compileB e env usedSlots [Return]
+inCompileR e@(Application (Application (Var op) e1) e2) _ env usedSlots
   | op `elem` domain primitiveOpMap = compileB e env usedSlots [Return]
-compileR (Let False defs exp) env usedSlots =
+inCompileR (Let False defs exp) argStat env usedSlots =
   (usedSlots'', zipWith Move indexs addrs ++ is)
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
     (usedSlots', addrs) = seqCompile False compileU (zip (map snd defs) indexs) env (usedSlots + n)
-    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
-    (usedSlots'', is) = compileR exp env' usedSlots'
-compileR (Let True defs exp) env usedSlots =
+    env' = zipWith (\n i -> (n, (makeIndirectMode i, 0))) (domain defs) indexs ++ env
+    (usedSlots'', is) = inCompileR exp argStat env' usedSlots' -- let 这里要怎么编呢？
+inCompileR (Let True defs exp) argStat env usedSlots =
   (usedSlots'', zipWith Move indexs addrs ++ is)
   where
     n = length defs
     indexs = [usedSlots + 1 .. usedSlots + n]
-    env' = zipWith (\n i -> (n, makeIndirectMode i)) (domain defs) indexs ++ env
+    env' = zipWith (\n i -> (n, (makeIndirectMode i, 0))) (domain defs) indexs ++ env
     (usedSlots', addrs) = seqCompile False compileU (zip (map snd defs) indexs) env' (usedSlots + n)
-    (usedSlots'', is) = compileR exp env' usedSlots'
-compileR (Application (Application (Application (Var "if") e1) e2) e3) env usedSlots =
+    (usedSlots'', is) = inCompileR exp argStat env' usedSlots'
+inCompileR (Application (Application (Application (Var "if") e1) e2) e3) _ env usedSlots =
   compileB e1 env slots [Cond (head codes) (codes !! 1)]
   where
     (slots, codes) = seqCompile True compileR [e2, e3] env usedSlots
-compileR (Application e v@(Var {})) env usedSlots = (slots, Push (compileA v env) : is)
-  where (slots, is) = compileR e env usedSlots
-compileR (Application e n@(Num {})) env usedSlots = (slots, Push (compileA n env) : is)
-  where (slots, is) = compileR e env usedSlots
-compileR (Application e1 e2) env usedSlots = (slots2, Move argIndex addr : Push (makeIndirectMode argIndex) : is) -- 这也没有可以直接复制啊，吧？直接复制这里是什么意思？
+inCompileR (Application e v@(Var {})) argStat env usedSlots = (slots, Push (compileA v env) : is)
+  where (slots, is) = inCompileR e argStat env usedSlots
+inCompileR (Application e n@(Num {})) argStat env usedSlots = (slots, Push (compileA n env) : is)
+  where (slots, is) = inCompileR e argStat env usedSlots
+inCompileR e@(Application e1 e2) argStat env usedSlots =
+  (slots2, Move argIndex addr : Push (makeIndirectMode argIndex) : is)
   where
     (slots1, addr) = compileU (e2, argIndex) env argIndex
-    (slots2, is) = compileR e1 env slots1
+    (slots2, is) = inCompileR e1 argStat env slots1
     argIndex = usedSlots + 1
-compileR e@(Var {}) env usedSlots = (usedSlots, makeEnter (compileA e env))
-compileR e env usedSlots = error ("compileR: cannot compile " ++ show e)
+inCompileR e@(Var n) Full env usedSlots = (usedSlots, makeEnter (compileA (Var (n ++ "_fullApp")) env))
+inCompileR e@(Var {}) _ env usedSlots = (usedSlots, makeEnter (compileA e env))
+inCompileR e _ env usedSlots = error ("compileR: cannot compile " ++ show e)
 
 seqCompile :: Bool -> (b -> TimEnvironment -> Int -> (Int, a)) -> [b] -> TimEnvironment -> Int -> (Int, [a])
 seqCompile slotShared compile exps env usedSlots =
@@ -88,7 +112,7 @@ makeEnter (Code i) = i
 makeEnter addr = [Enter addr]
 
 compileA :: CoreExpr -> TimEnvironment -> TimAddrMode
-compileA (Var name) env = lookup env name (error ("Unknown variable: " ++ name))
+compileA (Var name) env = fst $ lookup env name (error ("Unknown variable: " ++ name))
 compileA (Num n) env = IntConst n
 
 type Continuation = TimCode
