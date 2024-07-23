@@ -1,10 +1,11 @@
 module TIM.Printer where
 
 import TIM.Util (TimState (..), TimHeap, FramePtr (FrameAddr, FrameNull, FrameInt), TimStack, TimValueStack, TimDump, Closure, getStepsFromStats, Instruction (..), TimAddrMode (..), TimCode, maxStackDepth, ValueAddrMode (..))
-import PrettyPrint (display, concat, Sequence (Newline, Indent, Append, Nil), layn, str, interleave, num)
+import PrettyPrint (display, concat, Sequence (Newline, Indent, Append, Nil), layn, str, interleave, num, laynList, displaySeqs, laynAsSeqs)
 import Prelude hiding (concat)
 import Heap (heapLookup, heapSize)
 import AST (Name)
+import Debug.Trace (trace)
 
 -- 每个函数只负责内部的换行，除了 showResults 函数
 data HowMuchToPrint = Full | Terse | None
@@ -20,13 +21,12 @@ showResults states =
 
 showFullResults :: [TimState] -> [Char]
 showFullResults states =
-  display (concat [
-    str "SuperCombinator definitions", Newline,
-    showSuperCombinatorDefs (head states), Newline, Newline,
-    str "State transitions", Newline,
-    layn (map showState states), Newline, Newline,
-    showStats (last states)
-  ])
+  displaySeqs (
+    str "SuperCombinator definitions" : Newline :
+    showSuperCombinatorDefs (head states) : Newline : Newline :
+    str "State transitions" : Newline :
+    laynAsSeqs (map showState states) ++ [Newline, Newline,
+    showStats (last states)])
 
 showSuperCombinatorDefs :: TimState -> Sequence
 showSuperCombinatorDefs state =
@@ -122,12 +122,21 @@ showInstruction detail (Cond code1 code2) = concat [
 showInstruction detail (Move n addr) = concat [str "Move ", num n, str " ", showArg detail addr]
 showInstruction detail (PushMarker n) = concat [str "PushMarker ", num n]
 showInstruction detail (UpdateMarkers n) = concat [str "UpdateMarkers ", num n]
+showInstruction detail (Switch alts) = concat [
+  str "Switch ", Newline,
+  Indent (interleave Newline (map (\(t, is) -> concat [num t, str " -> ", showInstructions detail is]) alts))
+  ]
+showInstruction detail (ReturnConstructor tag) = concat [
+  str "ReturnConstructor ",
+  num tag
+  ]
 
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n
 showArg detail (Code is) = str "Code " `Append` showInstructions detail is
 showArg detail (Label name) = str "Label " `Append` str name
 showArg detail (IntConst n) = str "IntConst " `Append` num n
+showArg detail (Data n) = str "Data " `Append` num n
 
 showValueArg :: HowMuchToPrint -> ValueAddrMode -> Sequence
 showValueArg detail FramePtr = str "FramePtr"

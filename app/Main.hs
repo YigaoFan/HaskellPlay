@@ -13,6 +13,7 @@ import Prelude (print)
 -- import GMachine.Program (run)
 import GMachine.Compiler (compileSuperCombinator)
 import TIM.Program (run, fullRun)
+import Debug.Trace (trace)
 
 src0 =
   "pair x y f = f x y;\n\
@@ -217,11 +218,32 @@ src44 =
   "f x y = x + y\n\
   \main = let a = 1 + 2 * 3 in f a a"
 
+
+src45 =
+  "cons = Pack{2, 2}\n\
+  \nil = Pack{1, 0}\n\
+  \main = length (cons 1 (cons 2 nil))\n\
+  \length xs = case xs of\n\
+    \<1> -> 0\n\
+    \<2> p ps -> 1 + length ps"
+--为什么 nil 的 Take 和 UpdateMarkers 没有被优化掉？
 -- TODO 实现下 case
+next n = n + 1
+eval n = trace "get item" n : trace "get remain" remain
+  where
+    remain 
+      | n == 10 = [error "hello inner error"]
+      | otherwise = eval (next n)
+dis :: [Int] -> String
+dis (x : xs) = show x ++ dis xs
+dis [] = ""
+
 main :: IO ()
 main = do
-  let r = fullRun src44
+  let r = fullRun src45
+
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
+  -- putStr (show [[1, 2, 3], eval 1])
   putStr r
 
 -- main = do

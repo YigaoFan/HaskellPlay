@@ -13,6 +13,8 @@ import GHC.List (take)
 import GHC.Show (Show (show), showSpace)
 import Prelude hiding(concat, print, (.))
 import Heap (Addr)
+import GHC.OldList (intersperse)
+import Debug.Trace (trace)
 
 class PrettyPrinted a where
   print :: a -> Int -> Sequence
@@ -103,6 +105,9 @@ interleave sep =
     case b of
       Nil -> s
       _   -> concat [b, sep, s]) Nil
+interleaveAsSeqs :: Sequence -> [Sequence] -> [Sequence]
+interleaveAsSeqs = intersperse
+
 space :: Int -> String
 space n = replicate n ' '
 
@@ -115,8 +120,14 @@ fillSpaceNum width n =
   where
     digits = show n
 
+laynList :: [Sequence] -> [Sequence]
+laynList seqs = intersperse Newline (map Indent (zipWith (\n seq -> concat [num n, Str ")", seq]) [1 ..] seqs))
+
 layn :: [Sequence] -> Sequence
 layn seqs = Indent (interleave Newline (zipWith (\n seq -> concat [num n, Str ")", seq]) [1 ..] seqs))
+
+laynAsSeqs :: [Sequence] -> [Sequence]
+laynAsSeqs seqs = map Indent (interleaveAsSeqs Newline (zipWith (\n seq -> concat [num n, Str ")", seq]) [1 ..] seqs))
 
 flatten :: Int -> Bool -> [Sequence] -> String
 flatten _ _ [] = ""
@@ -132,6 +143,9 @@ flatten col isNewLine (Indent s : seqs) =
 -- 耗时等比于 s 的长度
 display :: Sequence -> String
 display s = flatten 0 True [s]
+
+displaySeqs :: [Sequence] -> String
+displaySeqs = flatten 0 True
 
 showAddr :: Addr -> Sequence
 showAddr = Str . show
