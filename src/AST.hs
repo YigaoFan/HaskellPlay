@@ -46,7 +46,7 @@ makeProgram scs = scs
 
 isFullApplication :: Expr Name -> Int -> (Name -> Int) -> Bool
 isFullApplication (Application e1 e2) foundArgs query = isFullApplication e1 (foundArgs + 1) query
-isFullApplication (Var n) foundArgs query = trace (printf "isFullApplication with %s, found: %d, expect: %d" n foundArgs (query n)) foundArgs == query n
+isFullApplication (Var n) foundArgs query = foundArgs == query n
 isFullApplication (Lambda xs _) foundArgs query = foundArgs == length xs
 isFullApplication (Constructor _ arity) foundArgs query = foundArgs == arity
 isFullApplication (Let _ _ e) foundArgs query = isFullApplication e foundArgs query

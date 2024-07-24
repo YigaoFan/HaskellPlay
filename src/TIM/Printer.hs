@@ -1,7 +1,7 @@
 module TIM.Printer where
 
 import TIM.Util (TimState (..), TimHeap, FramePtr (FrameAddr, FrameNull, FrameInt), TimStack, TimValueStack, TimDump, Closure, getStepsFromStats, Instruction (..), TimAddrMode (..), TimCode, maxStackDepth, ValueAddrMode (..))
-import PrettyPrint (display, concat, Sequence (Newline, Indent, Append, Nil), layn, str, interleave, num, laynList, displaySeqs, laynAsSeqs)
+import PrettyPrint (display, concat, Sequence (Newline, Indent, Append, Nil), layn, str, interleave, num, laynList, displaySeqs, laynAsSeqs, interleaveAsSeqs)
 import Prelude hiding (concat)
 import Heap (heapLookup, heapSize)
 import AST (Name)
@@ -38,7 +38,7 @@ showState state =
     str "Code: ", showInstructions Terse (code state), Newline,
     showFrame (heap state) (framePtr state), Newline,
     showStack (stack state), Newline,
-    showValueStack (valueStack state),
+    showValueStack (valueStack state), Newline,
     showDump (dump state)
   ]
 
@@ -69,8 +69,12 @@ showValueStack valueStack = concat [
   str "VStack: [ ", interleave (str ", ") (map num valueStack), str " ]"
     ]
 
+showDumpItem :: (FramePtr, Int, TimStack) -> Sequence
+showDumpItem (framePtr, x, stk) = concat (
+  str "(" : showFramePtr framePtr : str "," : num x : str ", " : str "[" : interleaveAsSeqs (Append (str ",") Newline) (map showClosure stk) ++ [str "]", str ")"])
+
 showDump :: TimDump -> Sequence
-showDump dump = Nil
+showDump dump = concat (str "Dump: [" : map showDumpItem dump ++ [str "]"])
 
 showClosure :: Closure -> Sequence
 showClosure (i, f) =

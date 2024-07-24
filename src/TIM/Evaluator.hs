@@ -1,12 +1,13 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure, setDump)
+import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure, setDump, setDataFramePtr)
 import qualified Data.List as DL (take)
 import Prelude hiding (lookup, take, return)
 import Prelude (Bool(False))
 import Heap (heapAlloc, heapLookup, lookup)
-import Debug.Trace (trace)
+import Debug.Trace (trace, traceStack)
 import AST (Name)
+import GHC.Stack (HasCallStack)
 
 eval :: TimState -> [TimState]
 eval state = state : remain
@@ -52,6 +53,8 @@ dispatch (Op NotEq) = primitive2OnValueStack (\a -> bool2Int . (/=) a)
 dispatch (Cond code1 code2) = cond code1 code2
 dispatch (PushMarker x) = pushMarker x
 dispatch (UpdateMarkers n) = updateMarkers n
+dispatch (Switch alts) = switch alts
+dispatch (ReturnConstructor t) = returnConstructor t
 
 take :: Int -> Int -> TimState -> TimState
 take cap n state
@@ -70,6 +73,7 @@ closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
 closureOf (Label n) state = (codeLookup (codeStore state) n, framePtr state)
 closureOf (Code code) state = (code, framePtr state)
 closureOf (IntConst n) state = (intCode, FrameInt n)
+closureOf (Data i) state = getClosure (heap state) (dataFramePtr state) i
 
 move :: Int -> TimAddrMode -> TimState -> TimState
 move to addr state =
@@ -169,3 +173,30 @@ updateMarkers n state
     (f, x, s) = head dmp
     (h', f') = allocateFrame (heap state) stk
     h'' = updateClosure h' f x (map (Push . Arg) [m, m - 1 .. 1] ++ UpdateMarkers n : code state, f')
+
+switch :: [(Int, TimCode)] -> TimState -> TimState
+switch alts state
+  | not (null (code state)) = codeShouldBeEmptyError
+  | otherwise = let t = head (valueStack state) in
+    setCode (lookup alts t (error ("not found alt for tag " ++ show t)))
+      (setValueStack (tail (valueStack state)) state)
+
+returnConstructor :: Int -> TimState -> TimState
+returnConstructor tag state
+  | not (null (code state)) = codeShouldBeEmptyError
+  | null stk = let (fu, x, s) = head dmp in
+    let h = updateClosure (heap state) fu x ([ReturnConstructor tag], framePtr state) in
+      setCode [ReturnConstructor tag]
+        (setStack s
+          (setHeap h 
+            (setDump (tail dmp) state)))
+  | otherwise = let (is, f) = head stk in
+      setCode is 
+        (setFramePtr f -- data frame pointer 到底是哪个？
+          (setDataFramePtr (framePtr state)
+            (setStack (tail stk)
+              (setValueStack (tag : valueStack state) state))))
+  where
+    dmp = dump state
+    stk = stack state
+    

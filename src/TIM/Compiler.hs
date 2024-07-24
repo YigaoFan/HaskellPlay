@@ -1,6 +1,6 @@
 module TIM.Compiler where
 
-import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (..), isFullApplication)
+import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (..), isFullApplication, Alter)
 import TIM.Util (TimState (TimState), Instruction (..), TimAddrMode (..), FramePtr (FrameNull), initStack, initValueStack, initDump, initStats, TimCode, Op (..), Closure, ValueAddrMode (IntValueConst))
 import Heap (lookup, initHeap)
 import Prelude hiding (lookup)
@@ -14,7 +14,7 @@ import Debug.Trace (trace)
 type TimEnvironment = [(Name, (TimAddrMode, Int))]
 
 compile :: CoreProgram -> TimState
-compile program = TimState [Enter (Label "main")] FrameNull initStack initValueStack initDump initHeap (compiledScDefs ++ map (\(n, is) -> (n ++ "_fullApp", removeUpdaters is)) compiledScDefs) initStats
+compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack initValueStack initDump initHeap (compiledScDefs ++ map (\(n, is) -> (n ++ "_fullApp", removeUpdaters is)) compiledScDefs) initStats
   where
     -- scDefs = defs ++ primitives ++ program
     -- scDefs = defs ++ program    
@@ -44,7 +44,7 @@ compileR :: CoreExpr -> TimEnvironment -> Int -> (Int, TimCode)
 compileR e@(Application e1 e2) env =
   inCompileR
     e
-    (if isFullApplication e1 1 (\n -> snd $ lookup env n (error ("Unknown variable: " ++ n))) then Full else Partial)
+    (if isFullApplication e1 1 (\n -> snd $ lookup env n (error ("Unknown variable: " ++ n ++ " in " ++ show (length env)))) then Full else Partial)
     env
 compileR e@(Let {}) env =
   inCompileR
@@ -56,6 +56,14 @@ compileR e env = inCompileR e Unknown env
 -- + if 这些可以 partial application 吗？可以，下面有 compiledPrimitives，外面有 primitives
 inCompileR :: CoreExpr -> ArgStatus -> TimEnvironment -> Int -> (Int, TimCode)
 inCompileR e@(Num {}) _ env usedSlots = compileB e env usedSlots [Return]
+inCompileR (Constructor tag arity) _ env usedSlots =
+  if arity == 0
+    then (usedSlots, [ReturnConstructor tag])
+    else (usedSlots, [UpdateMarkers arity, Take arity arity, ReturnConstructor tag])
+inCompileR (Case e alts) _ env usedSlots = (slots2, Push (Code [Switch branches]) :is) -- TODO chanage
+  where 
+    (slots1, branches) = seqCompile True compileE alts env usedSlots
+    (slots2, is) = compileR e env slots1
 inCompileR e@(Application (Var "negate") _) _ env usedSlots = compileB e env usedSlots [Return]
 inCompileR e@(Application (Application (Var op) e1) e2) _ env usedSlots
   | op `elem` domain primitiveOpMap = compileB e env usedSlots [Return]
@@ -133,6 +141,14 @@ compileU :: (CoreExpr, Int) -> TimEnvironment -> Int -> (Int, TimAddrMode)
 compileU (Num n, slot) env usedSlots = (usedSlots, IntConst n)
 compileU (e, slot) env usedSlots = (slots', Code (PushMarker slot : is))
   where (slots', is) = compileR e env usedSlots
+
+compileE :: Alter Name -> TimEnvironment -> Int -> (Int, (Int, TimCode))
+compileE (tag, paras, body) env usedSlots = (slots, (tag, moves ++ is))
+  where
+    n = length paras
+    moves = map (\i -> Move (usedSlots + i) (Data i)) [1 .. n]
+    env' = zipWith (\n i -> (n, (Arg i, 0))) paras [usedSlots + 1 .. usedSlots + n] ++ env
+    (slots, is) = compileR body env' (usedSlots + n)
 
 primitiveOpMap :: [(Name, Op)]
 primitiveOpMap = [

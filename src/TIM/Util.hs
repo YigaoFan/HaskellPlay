@@ -8,6 +8,7 @@ data TimState = TimState
   {
     code :: TimCode,
     framePtr :: FramePtr,
+    dataFramePtr :: FramePtr,
     stack :: TimStack,
     valueStack :: TimValueStack,
     dump :: TimDump,
@@ -20,6 +21,8 @@ setCode :: TimCode -> TimState -> TimState
 setCode ins state = state {code = ins}
 setFramePtr :: FramePtr -> TimState -> TimState
 setFramePtr framePtr state = state { framePtr = framePtr }
+setDataFramePtr :: FramePtr -> TimState -> TimState
+setDataFramePtr dataFramePtr state = state { dataFramePtr = dataFramePtr }
 setStack :: TimStack -> TimState -> TimState
 setStack stack state = state { stack = stack }
 setValueStack :: TimValueStack -> TimState -> TimState
@@ -42,12 +45,15 @@ data Instruction = Take Int Int |
   Cond [Instruction] [Instruction] |
   Move Int TimAddrMode |
   PushMarker Int |
-  UpdateMarkers Int
+  UpdateMarkers Int |
+  Switch [(Int, [Instruction])] |
+  ReturnConstructor Int
 
 data TimAddrMode = Arg Int |
   Label [Char] |
   Code TimCode |
-  IntConst Int
+  IntConst Int |
+  Data Int
 data ValueAddrMode = FramePtr | IntValueConst Int
 intCode = [PushV FramePtr, Return]
 
