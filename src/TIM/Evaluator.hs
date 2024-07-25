@@ -1,8 +1,8 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure, setDump, setDataFramePtr)
+import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure, setDump, setDataFramePtr, setOutput)
 import qualified Data.List as DL (take)
-import Prelude hiding (lookup, take, return)
+import Prelude hiding (lookup, take, return, print)
 import Prelude (Bool(False))
 import Heap (heapAlloc, heapLookup, lookup)
 import Debug.Trace (trace, traceStack)
@@ -55,6 +55,7 @@ dispatch (PushMarker x) = pushMarker x
 dispatch (UpdateMarkers n) = updateMarkers n
 dispatch (Switch alts) = switch alts
 dispatch (ReturnConstructor t) = returnConstructor t
+dispatch Print = print
 
 take :: Int -> Int -> TimState -> TimState
 take cap n state
@@ -201,4 +202,7 @@ returnConstructor tag state
   where
     dmp = dump state
     stk = stack state
-    
+
+print :: TimState -> TimState
+print state = setOutput (output state ++ show (head vs)) state
+  where vs = valueStack state

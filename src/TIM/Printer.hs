@@ -152,7 +152,7 @@ showInstruction detail (ReturnConstructor tag) = concat [
   str "ReturnConstructor ",
   num tag
   ]
-
+showInstruction detail Print = str "Print"
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n
 showArg detail (Code is) = str "Code " `Append` showInstructions detail is

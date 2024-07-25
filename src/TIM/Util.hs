@@ -14,7 +14,8 @@ data TimState = TimState
     dump :: TimDump,
     heap :: TimHeap,
     codeStore :: CodeStore,
-    stats :: TimStats
+    stats :: TimStats,
+    output :: String
   }
 
 setCode :: TimCode -> TimState -> TimState
@@ -35,6 +36,8 @@ setCodeStore :: CodeStore -> TimState -> TimState
 setCodeStore codeStore state = state { codeStore = codeStore }
 setStats :: TimStats -> TimState -> TimState
 setStats stats state = state { stats = stats }
+setOutput :: String -> TimState -> TimState
+setOutput o state = state { output = o }
 
 data Instruction = Take Int Int |
   Enter TimAddrMode |
@@ -47,7 +50,8 @@ data Instruction = Take Int Int |
   PushMarker Int |
   UpdateMarkers Int |
   Switch [(Int, [Instruction])] |
-  ReturnConstructor Int
+  ReturnConstructor Int |
+  Print
 
 data TimAddrMode = Arg Int |
   Label [Char] |
@@ -74,7 +78,8 @@ type TimDump = [(FramePtr, Int, TimStack)]
 
 data Op = Add | Sub | Mul | Div | Neg | Gr | GrEq | Lt | LtEq | Eq | NotEq deriving (Eq, Show)
 
-initStack = [([], FrameNull)]
+frame = replicate 2 ([], FrameNull)
+initStack = [(topCont, frame)]
 initValueStack = []
 initDump = []
 
@@ -112,3 +117,20 @@ recordStackDepth depth (stepCount, maxStackDepth) = (stepCount, max depth maxSta
 
 maxStackDepth :: TimStats -> Int
 maxStackDepth (_, d) = d
+
+initOutput = ""
+
+topCont :: TimCode
+topCont = [
+  Switch [
+    (1, []),
+    (2, [Move 1 (Data 1), Move 2 (Data 2), Push (Label "headCont"), Enter (Arg 1)])
+    ]
+  ]
+
+headCont :: TimCode
+headCont = [
+  Print,
+  Push (Label "topCont"),
+  Enter (Arg 2)
+  ]

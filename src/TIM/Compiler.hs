@@ -1,7 +1,7 @@
 module TIM.Compiler where
 
 import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (..), isFullApplication, Alter)
-import TIM.Util (TimState (TimState), Instruction (..), TimAddrMode (..), FramePtr (FrameNull), initStack, initValueStack, initDump, initStats, TimCode, Op (..), Closure, ValueAddrMode (IntValueConst))
+import TIM.Util (TimState (TimState), Instruction (..), TimAddrMode (..), FramePtr (FrameNull), initStack, initValueStack, initDump, initStats, TimCode, Op (..), Closure, ValueAddrMode (IntValueConst), initOutput, topCont, headCont)
 import Heap (lookup, initHeap)
 import Prelude hiding (lookup)
 import CorePrelude (primitives, defs)
@@ -14,7 +14,7 @@ import Debug.Trace (trace)
 type TimEnvironment = [(Name, (TimAddrMode, Int))]
 
 compile :: CoreProgram -> TimState
-compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack initValueStack initDump initHeap (compiledScDefs ++ map (\(n, is) -> (n ++ "_fullApp", removeUpdaters is)) compiledScDefs) initStats
+compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack initValueStack initDump initHeap codeStore initStats initOutput
   where
     -- scDefs = defs ++ primitives ++ program
     -- scDefs = defs ++ program    
@@ -22,6 +22,7 @@ compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack 
     initEnv = [(n, (Label n, paras)) | (n, paras) <- map (\(n, paras, _) -> (n, length paras)) scDefs]
     fullAppEnv = map (\(n, info) -> let n' = n ++ "_fullApp" in (n', (Label n', snd info))) initEnv
     compiledScDefs = map (`compileSuperCombinator` (initEnv ++ fullAppEnv)) scDefs
+    codeStore = ("topCont", topCont) : ("headCont", headCont) : compiledScDefs ++ map (\(n, is) -> (n ++ "_fullApp", removeUpdaters is)) compiledScDefs
 
 removeUpdaters :: TimCode -> TimCode
 removeUpdaters ((UpdateMarkers _) : xs) = xs
@@ -61,7 +62,7 @@ inCompileR (Constructor tag arity) _ env usedSlots =
     then (usedSlots, [ReturnConstructor tag])
     else (usedSlots, [UpdateMarkers arity, Take arity arity, ReturnConstructor tag])
 inCompileR (Case e alts) _ env usedSlots = (slots2, Push (Code [Switch branches]) :is) -- TODO chanage
-  where 
+  where
     (slots1, branches) = seqCompile True compileE alts env usedSlots
     (slots2, is) = compileR e env slots1
 inCompileR e@(Application (Var "negate") _) _ env usedSlots = compileB e env usedSlots [Return]
@@ -163,7 +164,6 @@ primitiveOpMap = [
   ("==", Eq),
   ("/=", NotEq)
   ]
-
 -- not full application will call this，对吗？如果 f n = if n，别处可以 f 3 1 2 吗？
 compiledPrimitives :: [(Name, TimCode)]
 compiledPrimitives = [
@@ -209,5 +209,3 @@ compiledPrimitives = [
     Enter (Arg 1)
     ])
   ]
-
-
