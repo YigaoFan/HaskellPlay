@@ -37,6 +37,7 @@ showState state =
   concat [
     str "Code: ", showInstructions Terse (code state), Newline,
     showFrame (heap state) (framePtr state), Newline,
+    showDataFrame (heap state) (dataFramePtr state), Newline,
     showStack (stack state), Newline,
     showValueStack (valueStack state), Newline,
     showDump (dump state)
@@ -55,6 +56,23 @@ showFrame heap (FrameInt n) =
   concat [
     str "Frame ptr (int): ", num n
   ]
+
+showDataFrame :: TimHeap -> FramePtr -> Sequence
+showDataFrame heap FrameNull = str "Null data frame ptr"
+showDataFrame heap (FrameAddr addr) =
+  let cs = heapLookup heap addr
+   in concat
+        [ str "DataFrame: ",
+          num (length cs),
+          str "item(s) <",
+          Indent (interleave Newline (map showClosure cs)),
+          str ">"
+        ]
+showDataFrame heap (FrameInt n) =
+  concat
+    [ str "DataFrame ptr (int): ",
+      num n
+    ]
 
 showStack :: TimStack -> Sequence
 showStack stack =

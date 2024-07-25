@@ -151,6 +151,7 @@ cond code1 code2 state =
 bool2Int :: Bool -> Int
 bool2Int b = if b then 0 else 1
 
+-- | set a update marker for the future
 pushMarker :: Int -> TimState -> TimState
 pushMarker x state =
   setDump ((f, x, stk) : dump state) (setStack [] state)
@@ -158,6 +159,7 @@ pushMarker x state =
     stk = stack state
     f = framePtr state
 
+-- | extend stack and update closure when args is not enough
 updateMarkers :: Int -> TimState -> TimState
 updateMarkers n state
   | length stk >= n = state
@@ -192,7 +194,7 @@ returnConstructor tag state
             (setDump (tail dmp) state)))
   | otherwise = let (is, f) = head stk in
       setCode is 
-        (setFramePtr f -- data frame pointer 到底是哪个？
+        (setFramePtr f
           (setDataFramePtr (framePtr state)
             (setStack (tail stk)
               (setValueStack (tag : valueStack state) state))))

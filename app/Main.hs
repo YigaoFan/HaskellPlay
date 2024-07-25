@@ -225,11 +225,22 @@ src45 =
   \length xs = case xs of\n\
     \<1> -> 0\n\
     \<2> p ps -> 1 + length ps"
+
+src46 =
+  "cons = Pack{2, 2}\n\
+  \nil = Pack{1, 0}\n\
+  \append xs ys = case xs of\n\
+    \<1> -> ys\n\
+    \<2> p ps -> cons p (append ps ys)\n\
+  \main = let xs = append (cons 1 nil) (cons 2 nil) in length xs + length xs\n\
+  \length xs = case xs of\n\
+  \<1> -> 0\n\
+  \<2> p ps -> 1 + length ps"
 --为什么 nil 的 Take 和 UpdateMarkers 没有被优化掉？
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src45
+  let r = fullRun src46
 
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r

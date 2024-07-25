@@ -60,6 +60,7 @@ intCode = [PushV FramePtr, Return]
 data FramePtr = FrameAddr Addr |
   FrameInt Int |
   FrameNull
+  deriving Show
 
 type TimCode = [Instruction]
 type TimStack = [Closure]
@@ -84,6 +85,7 @@ allocateFrame heap frame = (h, FrameAddr a)
 getClosure :: TimHeap -> FramePtr -> Int -> Closure
 getClosure heap (FrameAddr addr) n =
   heapLookup heap addr !! (n - 1)
+getClosure heap addr _ = error ("getClosure not support this addr: " ++ show addr)
 
 updateClosure :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
 updateClosure heap (FrameAddr addr) n closure =
