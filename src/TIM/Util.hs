@@ -78,8 +78,10 @@ type TimDump = [(FramePtr, Int, TimStack)]
 
 data Op = Add | Sub | Mul | Div | Neg | Gr | GrEq | Lt | LtEq | Eq | NotEq deriving (Eq, Show)
 
-frame = replicate 2 ([], FrameNull)
-initStack = [(topCont, frame)]
+setupInitStack :: TimHeap -> (TimStack, TimHeap)
+setupInitStack heap = ([(topCont, fptr)], h)
+  where (h, fptr) = allocateFrame heap (replicate 2 ([], FrameNull))
+-- initStack = [(topCont, frame)]
 initValueStack = []
 initDump = []
 

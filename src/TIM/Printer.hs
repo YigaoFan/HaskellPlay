@@ -6,6 +6,7 @@ import Prelude hiding (concat)
 import Heap (heapLookup, heapSize)
 import AST (Name)
 import Debug.Trace (trace)
+import Data.List (mapAccumL)
 
 -- 每个函数只负责内部的换行，除了 showResults 函数
 data HowMuchToPrint = Full | Terse | None
@@ -13,11 +14,15 @@ terseNum = 3
 
 showResults :: [TimState] -> [Char]
 showResults states =
-  display (concat [
+  display (concat ([
+    str "Output:", Newline] ++
+    map str os ++ [Newline,
     showState lastState, Newline,
     showStats lastState, Newline
-  ])
-  where lastState = last states
+  ]))
+  where
+    lastState = last states
+    (_, os) = mapAccumL (\a b -> let la = length a in if length b > la then (b, drop la b) else (b, "")) "" (map output states)
 
 showFullResults :: [TimState] -> [Char]
 showFullResults states =
@@ -26,7 +31,8 @@ showFullResults states =
     showSuperCombinatorDefs (head states) : Newline : Newline :
     str "State transitions" : Newline :
     laynAsSeqs (map showState states) ++ [Newline, Newline,
-    showStats (last states)])
+    showStats (last states), Newline,
+    str "Output:", showOutput (last states)])
 
 showSuperCombinatorDefs :: TimState -> Sequence
 showSuperCombinatorDefs state =
@@ -112,6 +118,9 @@ showStats state =
     str "Num of frames allocated = ", num (heapSize (heap state)), Newline,
     str "Max stack depth = ", num (maxStackDepth (stats state))
   ]
+
+showOutput :: TimState -> Sequence
+showOutput state = str (output state)
 
 showInstructions :: HowMuchToPrint -> [Instruction] -> Sequence
 showInstructions None _ = str "{..}"
