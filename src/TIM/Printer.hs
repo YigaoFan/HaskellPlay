@@ -1,6 +1,6 @@
 module TIM.Printer where
 
-import TIM.Util (TimState (..), TimHeap, FramePtr (FrameAddr, FrameNull, FrameInt), TimStack, TimValueStack, TimDump, Closure, getStepsFromStats, Instruction (..), TimAddrMode (..), TimCode, maxStackDepth, ValueAddrMode (..))
+import TIM.Util (TimState (..), TimHeap, FramePtr (FrameAddr, FrameNull, FrameInt), TimStack, TimValueStack, TimDump, Closure, getStepsFromStats, Instruction (..), TimAddrMode (..), TimCode, maxStackDepth, ValueAddrMode (..), getClosure)
 import PrettyPrint (display, concat, Sequence (Newline, Indent, Append, Nil), layn, str, interleave, num, laynList, displaySeqs, laynAsSeqs, interleaveAsSeqs)
 import Prelude hiding (concat)
 import Heap (heapLookup, heapSize)
@@ -36,7 +36,9 @@ showFullResults states =
 
 showSuperCombinatorDefs :: TimState -> Sequence
 showSuperCombinatorDefs state =
-  interleave Newline (map showSuperCombinator (codeStore state))
+  interleave Newline (map (\(n, i) -> showSuperCombinator (n, fst $ getClosure (heap state) f i)) maps)
+  where
+    (f, maps) = codeStore state
 
 showState :: TimState -> Sequence
 showState state =
@@ -48,7 +50,6 @@ showState state =
     showValueStack (valueStack state), Newline,
     showDump (dump state)
   ]
-
 showFrame :: TimHeap -> FramePtr -> Sequence
 showFrame heap FrameNull = str "Null frame ptr"
 showFrame heap (FrameAddr addr) =

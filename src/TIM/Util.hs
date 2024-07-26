@@ -1,6 +1,6 @@
 module TIM.Util where
 
-import Heap (Addr, Heap, heapAlloc, heapLookup, heapUpdate, lookup)
+import Heap (Addr, Heap, heapAlloc, heapLookup, heapUpdate, lookup, initHeap)
 import AST (Name)
 import Prelude hiding (lookup)
 
@@ -71,7 +71,7 @@ type TimStack = [Closure]
 type Closure = (TimCode, FramePtr)
 type TimHeap = Heap Frame
 type Frame = [Closure]
-type CodeStore = [(Name, TimCode)]
+type CodeStore = (FramePtr, [(Name, Int)])
 type TimStats = (Int, Int)
 type TimValueStack = [Int]
 type TimDump = [(FramePtr, Int, TimStack)]
@@ -101,9 +101,9 @@ updateClosure heap (FrameAddr addr) n closure =
     frame = heapLookup heap addr
     newFrame = take (n - 1) frame ++ (closure : drop n frame)
 
-codeLookup :: CodeStore -> Name -> TimCode
-codeLookup codeStore name =
-  lookup codeStore name (error ("not found code for label " ++ name))
+codeLookup :: TimHeap -> CodeStore -> Name -> TimCode
+codeLookup heap (f, maps) name =
+  fst (getClosure heap f (lookup maps name (error ("not found code for label " ++ name))))
 
 initStats :: TimStats
 initStats = (0, 0)
@@ -136,3 +136,11 @@ headCont = [
   Push (Label "topCont"),
   Enter (Arg 2)
   ]
+
+allocateInitHeap :: [(Name, TimCode)] -> (TimHeap, CodeStore)
+allocateInitHeap codes = (heap, (globalFrameAddr, offsets))
+  where
+    indexedCodes = zip [1..] codes
+    offsets = [(name, offset) | (offset, (name, code)) <- indexedCodes] -- 下面的 PushMarker 不是与 full application 去掉 UpdateMarkers 冲突吗？
+    closures = [(PushMarker offset : code, globalFrameAddr) | (offset, (name, code)) <- indexedCodes] -- 怎么感觉这里递归定义了， globalFrameAddr
+    (heap, globalFrameAddr) = allocateFrame initHeap closures

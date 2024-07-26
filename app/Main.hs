@@ -254,7 +254,7 @@ src48 =
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = run src48
+  let r = fullRun src48
 
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r

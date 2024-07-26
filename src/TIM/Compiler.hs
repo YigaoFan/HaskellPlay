@@ -1,7 +1,7 @@
 module TIM.Compiler where
 
 import AST (CoreProgram, CoreSuperCombinator, Name, CoreExpr, Expr (..), isFullApplication, Alter)
-import TIM.Util (TimState (TimState), Instruction (..), TimAddrMode (..), FramePtr (FrameNull), initValueStack, initDump, initStats, TimCode, Op (..), Closure, ValueAddrMode (IntValueConst), initOutput, topCont, headCont, setupInitStack)
+import TIM.Util (TimState (TimState), Instruction (..), TimAddrMode (..), FramePtr (FrameNull), initValueStack, initDump, initStats, TimCode, Op (..), Closure, ValueAddrMode (IntValueConst), initOutput, topCont, headCont, setupInitStack, allocateInitHeap)
 import Heap (lookup, initHeap)
 import Prelude hiding (lookup)
 import CorePrelude (primitives, defs)
@@ -14,16 +14,15 @@ import Debug.Trace (trace)
 type TimEnvironment = [(Name, (TimAddrMode, Int))]
 
 compile :: CoreProgram -> TimState
-compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack initValueStack initDump heap codeStore initStats initOutput
+compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack initValueStack initDump initHeap codeStore initStats initOutput
   where
     -- scDefs = defs ++ primitives ++ program
     -- scDefs = defs ++ program    
     scDefs = program
-    initEnv = [(n, (Label n, paras)) | (n, paras) <- map (\(n, paras, _) -> (n, length paras)) scDefs]
-    fullAppEnv = map (\(n, info) -> let n' = n ++ "_fullApp" in (n', (Label n', snd info))) initEnv
-    compiledScDefs = map (`compileSuperCombinator` (initEnv ++ fullAppEnv)) scDefs
-    codeStore = ("topCont", topCont) : ("headCont", headCont) : compiledScDefs ++ map (\(n, is) -> (n ++ "_fullApp", removeUpdaters is)) compiledScDefs
-    (initStack, heap) = setupInitStack initHeap
+    initEnv = concat [[(n, (Label n, paras)), (fullAppName, (Label fullAppName, paras))] | (n, fullAppName, paras) <- map (\(n, paras, _) -> (n, n ++ "_fullApp", length paras)) scDefs]
+    compiledScDefs = concatMap ((\x@(name, code) -> [x, (name ++ "_fullApp", removeUpdaters code)]) . (`compileSuperCombinator` initEnv)) scDefs
+    (heap, codeStore) = allocateInitHeap (("topCont", topCont) : ("headCont", headCont) : compiledScDefs)
+    (initStack, initHeap) = setupInitStack heap
 
 removeUpdaters :: TimCode -> TimCode
 removeUpdaters ((UpdateMarkers _) : xs) = xs

@@ -71,7 +71,7 @@ take cap n state
       remain = drop n (stack state)
 
 closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
-closureOf (Label n) state = (codeLookup (codeStore state) n, framePtr state)
+closureOf (Label n) state = (codeLookup (heap state) (codeStore state) n, framePtr state)
 closureOf (Code code) state = (code, framePtr state)
 closureOf (IntConst n) state = (intCode, FrameInt n)
 closureOf (Data i) state = getClosure (heap state) (dataFramePtr state) i
@@ -101,7 +101,7 @@ enterOnlySetCode addr state =
     else setCode (codeOf addr state) state
   where
     codeOf (Code code) state = code
-    codeOf (Label n) state = codeLookup (codeStore state) n
+    codeOf (Label n) state = codeLookup (heap state) (codeStore state) n
 
 pushVFramePtr :: TimState -> TimState
 pushVFramePtr state =
