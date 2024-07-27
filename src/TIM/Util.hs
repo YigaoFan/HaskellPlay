@@ -54,7 +54,7 @@ data Instruction = Take Int Int |
   Print
 
 data TimAddrMode = Arg Int |
-  Label [Char] |
+  Label [Char] Int |
   Code TimCode |
   IntConst Int |
   Data Int
@@ -78,9 +78,9 @@ type TimDump = [(FramePtr, Int, TimStack)]
 
 data Op = Add | Sub | Mul | Div | Neg | Gr | GrEq | Lt | LtEq | Eq | NotEq deriving (Eq, Show)
 
-setupInitStack :: TimHeap -> (TimStack, TimHeap)
-setupInitStack heap = ([(topCont, fptr)], h)
-  where (h, fptr) = allocateFrame heap (replicate 2 ([], FrameNull))
+setupInitStack :: TimHeap -> TimCode -> Int -> (TimStack, TimHeap)
+setupInitStack heap topCont reservedSlots = ([(topCont, fptr)], h)
+  where (h, fptr) = allocateFrame heap (replicate reservedSlots ([], FrameNull))
 -- initStack = [(topCont, frame)]
 initValueStack = []
 initDump = []
@@ -101,13 +101,8 @@ updateClosure heap (FrameAddr addr) n closure =
     frame = heapLookup heap addr
     newFrame = take (n - 1) frame ++ (closure : drop n frame)
 
-codeLookup :: TimHeap -> CodeStore -> Name -> TimCode
-codeLookup heap (f, maps) name =
-  fst (getClosure heap f (lookup maps name (error ("not found code for label " ++ name))))
-
-globalClosureLookup :: TimHeap -> CodeStore -> Name -> Closure
-globalClosureLookup heap (f, maps) name =
-  getClosure heap f (lookup maps name (error ("not found code for label " ++ name)))
+globalClosureLookup :: TimHeap -> CodeStore -> Name -> Int -> Closure
+globalClosureLookup heap (f, maps) name = getClosure heap f
 
 initStats :: TimStats
 initStats = (0, 0)
@@ -126,18 +121,27 @@ maxStackDepth (_, d) = d
 
 initOutput = ""
 
-topCont :: TimCode
-topCont = [
+-- | k is position of headCont
+genTopCont :: Int -> TimCode
+genTopCont k = [
   Switch [
     (1, []),
-    (2, [Move 1 (Data 1), Move 2 (Data 2), Push (Label "headCont"), Enter (Arg 1)])
+    (2, [Move 1 (Data 1), Move 2 (Data 2), Push (Label "headCont" k), Enter (Arg 1)])
     ]
   ]
+-- topCont :: TimCode
+-- topCont = [
+--   Switch [
+--     (1, []),
+--     (2, [Move 1 (Data 1), Move 2 (Data 2), Push (Label "headCont"), Enter (Arg 1)])
+--     ]
+--   ]
 
-headCont :: TimCode
-headCont = [
+-- | k is position of topCont
+genHeadCont :: Int -> TimCode
+genHeadCont k = [
   Print,
-  Push (Label "topCont"),
+  Push (Label "topCont" k),
   Enter (Arg 2)
   ]
 

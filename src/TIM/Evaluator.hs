@@ -1,6 +1,6 @@
 module TIM.Evaluator where
 
-import TIM.Util (FramePtr (..), Instruction (..), Op (..), TimAddrMode (..), TimCode, TimState (..), ValueAddrMode (..), allocateFrame, codeLookup, getClosure, globalClosureLookup, incStatSteps, intCode, recordStackDepth, setCode, setDataFramePtr, setDump, setFramePtr, setHeap, setOutput, setStack, setStats, setValueStack, updateClosure)
+import TIM.Util (FramePtr (..), Instruction (..), Op (..), TimAddrMode (..), TimCode, TimState (..), ValueAddrMode (..), allocateFrame, getClosure, globalClosureLookup, incStatSteps, intCode, recordStackDepth, setCode, setDataFramePtr, setDump, setFramePtr, setHeap, setOutput, setStack, setStats, setValueStack, updateClosure)
 import qualified Data.List as DL (take)
 import Prelude hiding (lookup, take, return, print)
 import Prelude (Bool(False))
@@ -34,7 +34,7 @@ dispatch (Move i addr) = move i addr
 dispatch (Push addr) = push addr
 dispatch (Enter addr@(Arg k)) = enter addr
 dispatch (Enter addr@(IntConst n)) = enter addr
-dispatch (Enter addr@(Label l)) = enter addr
+dispatch (Enter addr@(Label l k)) = enter addr
 dispatch (Enter addr@(Code i)) = enterOnlySetCode addr
 dispatch (PushV FramePtr) = pushVFramePtr
 dispatch (PushV (IntValueConst n)) = pushVIntValueConst n
@@ -71,8 +71,8 @@ take cap n state
       remain = drop n (stack state)
 
 closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
-closureOf (Label n) state = 
-  let closure@(code, fPtr) = globalClosureLookup (heap state) (codeStore state) n in
+closureOf (Label n k) state = 
+  let closure@(code, fPtr) = globalClosureLookup (heap state) (codeStore state) n k in
     case fPtr of
       FrameNull -> (code, framePtr state)
       _         -> closure -- if it isn't null, that means it's CAF

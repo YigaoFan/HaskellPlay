@@ -166,7 +166,7 @@ showInstruction detail Print = str "Print"
 showArg :: HowMuchToPrint -> TimAddrMode -> Sequence
 showArg detail (Arg n) = str "Arg " `Append` num n
 showArg detail (Code is) = str "Code " `Append` showInstructions detail is
-showArg detail (Label name) = str "Label " `Append` str name
+showArg detail (Label name k) = concat [str "Label ", str name, str " ", num k]
 showArg detail (IntConst n) = str "IntConst " `Append` num n
 showArg detail (Data n) = str "Data " `Append` num n
 

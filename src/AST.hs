@@ -44,9 +44,14 @@ makeSuperCombinator n as exp = (n, as, exp)
 makeProgram :: [SuperCombinator a] -> Program a
 makeProgram scs = scs
 
-isFullApplication :: Expr Name -> Int -> (Name -> Int) -> Bool
+-- 不完全，因为一个函数调用可能包含好几个函数调用，这些都可以判断
+isFullApplication :: Expr Name -> Int -> (Name -> Maybe Int) -> Bool
 isFullApplication (Application e1 e2) foundArgs query = isFullApplication e1 (foundArgs + 1) query
-isFullApplication (Var n) foundArgs query = foundArgs == query n
+-- sometimes Var is local variable which doesn't have parameter info, so add Maybe in sign
+isFullApplication (Var name) foundArgs query =
+  case query name of
+    Just num -> (foundArgs >= num) -- && (num /= 0)  -- not handle CAF now
+    _ -> False
 isFullApplication (Lambda xs _) foundArgs query = foundArgs == length xs
 isFullApplication (Constructor _ arity) foundArgs query = foundArgs == arity
 isFullApplication (Let _ _ e) foundArgs query = isFullApplication e foundArgs query

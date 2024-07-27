@@ -264,10 +264,27 @@ src50 =
   \a = 1 + 2 * 3\n\
   \main = cons (add a a) nil\n"
 
+src51 =
+  "add a b = a + b\n\
+  \cons = Pack{2, 2}\n\
+  \nil = Pack{1, 0}\n\
+  \a = 1 + 2 * 3\n\
+  \f c = c nil\n\
+  \main = f (cons (add a a))\n"
+
+src52 =
+  "add a b = a + b\n\
+  \cons = Pack{2, 2}\n\
+  \nil = Pack{1, 0}\n\
+  \a = 1 + 2 * 3\n\
+  \f1 c = c nil\n\
+  \f = f1\n\
+  \main = f (cons (add a a))\n"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src50
+  let r = fullRun src47
 
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
