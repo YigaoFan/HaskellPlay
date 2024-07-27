@@ -19,9 +19,9 @@ compile program = TimState [Enter (Label "main")] FrameNull FrameNull initStack 
     -- scDefs = defs ++ primitives ++ program
     -- scDefs = defs ++ program    
     scDefs = program
-    initEnv = concat [[(n, (Label n, paras)), (fullAppName, (Label fullAppName, paras))] | (n, fullAppName, paras) <- map (\(n, paras, _) -> (n, n ++ "_fullApp", length paras)) scDefs]
+    initEnv = concat [if paras > 0 then [(name, (Label name, paras)), (fullAppName, (Label fullAppName, paras))] else [(name, (Code [Enter (Label fullAppName)], paras)), (fullAppName, (Code [Enter (Label fullAppName)], paras))] | (name, fullAppName, paras) <- map (\(n, paras, _) -> (n, n ++ "_fullApp", length paras)) scDefs]
     compiledScDefs = concatMap ((\x@(name, code) -> [x, (name ++ "_fullApp", removeUpdaters code)]) . (`compileSuperCombinator` initEnv)) scDefs
-    (heap, codeStore) = allocateInitHeap (("topCont", topCont) : ("headCont", headCont) : compiledScDefs)
+    (heap, codeStore) = allocateInitHeap ["topCont", "headCont"] (("topCont", topCont) : ("headCont", headCont) : compiledScDefs)
     (initStack, initHeap) = setupInitStack heap
 
 removeUpdaters :: TimCode -> TimCode

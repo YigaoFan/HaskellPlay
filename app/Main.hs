@@ -251,10 +251,23 @@ src48 =
   \between n m = if (n > m) nil (cons n (between (n + 1) m))\n\
   \main = between 1 4\n"
 
+src49 =
+  "cons = Pack{2, 2}\n\
+  \nil = Pack{1, 0}\n\
+  \a = 1 + 2 * 3\n\
+  \main = cons (a + a) nil\n"
+
+src50 =
+  "add a b = a + b\n\
+  \cons = Pack{2, 2}\n\
+  \nil = Pack{1, 0}\n\
+  \a = 1 + 2 * 3\n\
+  \main = cons (add a a) nil\n"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src48
+  let r = fullRun src50
 
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r

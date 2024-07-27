@@ -105,6 +105,10 @@ codeLookup :: TimHeap -> CodeStore -> Name -> TimCode
 codeLookup heap (f, maps) name =
   fst (getClosure heap f (lookup maps name (error ("not found code for label " ++ name))))
 
+globalClosureLookup :: TimHeap -> CodeStore -> Name -> Closure
+globalClosureLookup heap (f, maps) name =
+  getClosure heap f (lookup maps name (error ("not found code for label " ++ name)))
+
 initStats :: TimStats
 initStats = (0, 0)
 
@@ -137,10 +141,16 @@ headCont = [
   Enter (Arg 2)
   ]
 
-allocateInitHeap :: [(Name, TimCode)] -> (TimHeap, CodeStore)
-allocateInitHeap codes = (heap, (globalFrameAddr, offsets))
+allocateInitHeap :: [Name] -> [(Name, TimCode)] -> (TimHeap, CodeStore)
+allocateInitHeap noNeedUpdateCodeNames codes = (heap, (globalFrameAddr, offsets))
   where
     indexedCodes = zip [1..] codes
-    offsets = [(name, offset) | (offset, (name, code)) <- indexedCodes] -- 下面的 PushMarker 不是与 full application 去掉 UpdateMarkers 冲突吗？
-    closures = [(PushMarker offset : code, globalFrameAddr) | (offset, (name, code)) <- indexedCodes] -- 怎么感觉这里递归定义了， globalFrameAddr
+    offsets = [(name, offset) | (offset, (name, code)) <- indexedCodes]
+    closures = [prefixUpdateIfIsCAF name code offset | (offset, (name, code)) <- indexedCodes]
     (heap, globalFrameAddr) = allocateFrame initHeap closures
+    prefixUpdateIfIsCAF name code offset | name `elem` noNeedUpdateCodeNames = (code, FrameNull)
+    prefixUpdateIfIsCAF name code@(Take _ paraCount : _) offset
+      | paraCount > 0 = (code, FrameNull)
+    prefixUpdateIfIsCAF name code@(UpdateMarkers paraCount : _) offset
+      | paraCount > 0 = (code, FrameNull)
+    prefixUpdateIfIsCAF name code offset = (PushMarker offset : code, globalFrameAddr)

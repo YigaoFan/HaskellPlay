@@ -1,6 +1,6 @@
 module TIM.Evaluator where
 
-import TIM.Util (TimState(..), incStatSteps, Instruction (..), setStack, setFramePtr, FramePtr (..), setHeap, setStats, setCode, TimAddrMode (..), intCode, getClosure, allocateFrame, codeLookup, TimCode, recordStackDepth, ValueAddrMode (..), setValueStack, Op (..), updateClosure, setDump, setDataFramePtr, setOutput)
+import TIM.Util (FramePtr (..), Instruction (..), Op (..), TimAddrMode (..), TimCode, TimState (..), ValueAddrMode (..), allocateFrame, codeLookup, getClosure, globalClosureLookup, incStatSteps, intCode, recordStackDepth, setCode, setDataFramePtr, setDump, setFramePtr, setHeap, setOutput, setStack, setStats, setValueStack, updateClosure)
 import qualified Data.List as DL (take)
 import Prelude hiding (lookup, take, return, print)
 import Prelude (Bool(False))
@@ -34,7 +34,7 @@ dispatch (Move i addr) = move i addr
 dispatch (Push addr) = push addr
 dispatch (Enter addr@(Arg k)) = enter addr
 dispatch (Enter addr@(IntConst n)) = enter addr
-dispatch (Enter addr@(Label l)) = enterOnlySetCode addr
+dispatch (Enter addr@(Label l)) = enter addr
 dispatch (Enter addr@(Code i)) = enterOnlySetCode addr
 dispatch (PushV FramePtr) = pushVFramePtr
 dispatch (PushV (IntValueConst n)) = pushVIntValueConst n
@@ -71,7 +71,11 @@ take cap n state
       remain = drop n (stack state)
 
 closureOf (Arg i) state = getClosure (heap state) (framePtr state) i
-closureOf (Label n) state = (codeLookup (heap state) (codeStore state) n, framePtr state)
+closureOf (Label n) state = 
+  let closure@(code, fPtr) = globalClosureLookup (heap state) (codeStore state) n in
+    case fPtr of
+      FrameNull -> (code, framePtr state)
+      _         -> closure -- if it isn't null, that means it's CAF
 closureOf (Code code) state = (code, framePtr state)
 closureOf (IntConst n) state = (intCode, FrameInt n)
 closureOf (Data i) state = getClosure (heap state) (dataFramePtr state) i
@@ -93,7 +97,7 @@ enter addr state =
     else let (is, f) = closureOf addr state in
       setCode is (setFramePtr f state)
 
--- | only for TimAddrMode(Code, IntConst) 
+-- | only for TimAddrMode(Code) 
 enterOnlySetCode :: TimAddrMode -> TimState -> TimState
 enterOnlySetCode addr state =
   if not (null (code state))
@@ -101,7 +105,6 @@ enterOnlySetCode addr state =
     else setCode (codeOf addr state) state
   where
     codeOf (Code code) state = code
-    codeOf (Label n) state = codeLookup (heap state) (codeStore state) n
 
 pushVFramePtr :: TimState -> TimState
 pushVFramePtr state =
