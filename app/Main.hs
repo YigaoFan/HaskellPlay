@@ -281,10 +281,19 @@ src52 =
   \f = f1\n\
   \main = f (cons (add a a))\n"
 
+src53 =
+  "add a b = a + b\n\
+  \cons a = Pack{2, 2} a\n\
+  \nil = Pack{1, 0}\n\
+  \a = 1 + 2 * 3\n\
+  \f1 c = c nil\n\
+  \f = f1\n\
+  \main = f (cons (add a a))\n"
+
 -- TODO 实现下 case
 main :: IO ()
 main = do
-  let r = fullRun src52
+  let r = fullRun src53
 
   -- 去掉部分 indirect 后，现在成 35 了，还没对比 heap 变化
   putStr r
