@@ -60,7 +60,7 @@ data Instruction =
   Pack Int Int | CaseJump [(Int, GmCode)] |
   Split Int | Print |
   PushBasic Int | MakeBool | MakeInt | Get |
-  Return
+  Return | Parallel
   deriving Show
 
 instance Eq Instruction where

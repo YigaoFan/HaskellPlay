@@ -4,17 +4,21 @@ import ParallelGMachine.Util
       LocalState(code, LocalState, clock),
       setCode,
       setClock,
-      GMachineState(GMachineState),
       setGlobalState,
       sparks,
       setStats,
       GlobalState(stats),
       setLocalStates,
-      setSparks
-      )
+      setSparks,
+      GMachineState,
+      GlobalState(..),
+      LocalState(..),
+      setStack )
 import Data.List (mapAccumL)
 import Heap (Addr)
-import GMachine.Util (Instruction(Unwind))
+import GMachine.Util (GmState (GmState), Instruction (Parallel, Unwind))
+import qualified GMachine.Util as GM (output, heap, code, stack, vStack, dump, stats, globals)
+import qualified GMachine.Evaluator as GM (dispatch)
 
 eval :: PGMachineState -> [PGMachineState]
 eval state = state : remain
@@ -46,7 +50,7 @@ step global local = dispatch i state
   where
     i : is = code local
     local' = setCode is local
-    state = GMachineState global local'
+    state = (global, local')
 
 doAdmin :: PGMachineState -> PGMachineState
 doAdmin state@(PGMachineState global locals) =
@@ -57,7 +61,15 @@ doAdmin state@(PGMachineState global locals) =
       | null $ code local = (newLocals, clock local : newStats)
       | otherwise = (local : newLocals, newStats)
 
-dispatch = error "not implement"
+dispatch :: Instruction -> GMachineState -> (GlobalState, LocalState)
+dispatch Parallel (global, local) = parallel global local
+dispatch i (global, local) =
+  (global { output = GM.output s, heap = GM.heap s, globals = GM.globals s }, local { code = GM.code s, stack = GM.stack s, dump = GM.dump s, vStack = GM.vStack s, clock = GM.stats s})
+  where
+    s = GM.dispatch i (GmState (output global) (code local) (stack local) (dump local) (vStack local) (heap global) (globals global) (clock local))
 
-par :: GMachineState -> GMachineState
-par s = s
+parallel :: GlobalState -> LocalState -> GMachineState
+parallel global local =
+  let a = head stk in
+    (setSparks (a : sparks global) global, setStack (tail stk) local)
+  where stk = stack local

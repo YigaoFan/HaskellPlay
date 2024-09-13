@@ -1,12 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 module ParallelGMachine.Util where
 
-import GMachine.Util (GmOutput, GmHeap, GmGlobals, GmStats, GmCode, GmStack, GmDump, GmVStack)
+import GMachine.Util (GmOutput, GmHeap, GmGlobals, GmStats, GmCode, GmStack, GmDump, GmVStack, Instruction)
 import Heap (Addr)
 import ParallelGMachine.SetterTH (defineSetter)
-import Language.Haskell.TH ()
 
-data GlobalState = GloablState
+data GlobalState = GlobalState
   {
     output :: GmOutput,
     heap :: GmHeap,
@@ -27,15 +26,12 @@ data PGMachineState = PGMachineState
     globalState :: GlobalState,
     localStates :: [LocalState]
   }
-data GMachineState = GMachineState
-  {
-    global :: GlobalState,
-    local :: LocalState
-  }
+type GMachineState = (GlobalState, LocalState) -- mainly for adapting GMachine
 type GmSparks = [Addr]
 type GmClock = Int
 type PGMachineStats = [Int]
-
+-- data ParallelInstruction = ProcessorInstr Instruction | Parallel
+-- type ParallelCode = [ParallelInstruction]
 $(defineSetter "output")
 $(defineSetter "heap")
 $(defineSetter "globals")
@@ -47,5 +43,11 @@ $(defineSetter "vStack")
 $(defineSetter "clock")
 $(defineSetter "globalState")
 $(defineSetter "localStates")
-$(defineSetter "global")
-$(defineSetter "local")
+global :: GMachineState -> GlobalState
+global (g, _) = g
+local :: GMachineState -> LocalState
+local (_, l) = l
+setGlobal :: GlobalState -> GMachineState -> GMachineState
+setGlobal g (_, l) = (g, l)
+setLocal :: LocalState -> GMachineState -> GMachineState
+setLocal l (g, _) = (g, l)

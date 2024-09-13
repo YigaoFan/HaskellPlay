@@ -149,3 +149,18 @@ displaySeqs = flatten 0 True
 
 showAddr :: Addr -> Sequence
 showAddr = Str . show
+
+-- | will interleave NewLine in lines
+appendNewLineIfNotNull :: [Sequence] -> Sequence
+appendNewLineIfNotNull lines =
+  Append
+    (interleave Newline lines)
+    (if not (null lines)
+       then Newline
+       else Nil
+    )
+
+showItems :: (a -> Sequence) -> [a] -> Sequence
+showItems convert2Seq xs = concat [
+  str "[", interleave (str ", ") (map convert2Seq xs), str "]"
+  ]

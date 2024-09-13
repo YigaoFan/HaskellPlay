@@ -18,7 +18,8 @@ primitives = [
   ("<", ["x", "y"], Application (Application (Var "<") (Var "x")) (Var "y")),
   ("if", ["c", "t", "f"], Application (Application (Application (Var "if") (Var "c")) (Var "t")) (Var "f")),
   ("True", [], Constructor 2 0),
-  ("False", [], Constructor 1 0)
+  ("False", [], Constructor 1 0),
+  ("par", ["x", "y"], Application (Application (Var "par") (Var "x")) (Var "y"))
   ]
 
 defs :: CoreProgram

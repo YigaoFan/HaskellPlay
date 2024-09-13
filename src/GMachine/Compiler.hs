@@ -26,7 +26,7 @@ builtInDyadicBoolOperator = [
   (">", Gt), (">=", Ge), ("<", Lt),  ("<=", Le)
   ]
 builtInDyadicNumOperator :: [(Name, Instruction)]
-builtInDyadicNumOperator =[
+builtInDyadicNumOperator = [
   ("+", Add),
   ("-", Sub),
   ("*", Mul),
@@ -56,6 +56,9 @@ compileR (Let True defs exp) env = compileLetrec compileC defs compileR (const [
 compileR (Application (Application (Application (Var "if") e0) e1) e2) env =
   compileB e0 env ++ [Cond (compileR e1 env) (compileR e2 env)]
 compileR (Case e alts) env = compileE e env ++ [CaseJump (compileAlts compileRAltBody alts env)]
+compileR (Application (Application (Var "par") e1) e2) env =
+  compileC e2 env ++ [Push 0, Parallel] ++
+  compileC e1 (argOffset 1 env) ++ [MakeApplication, Eval]
 compileR exp env = compileE exp env ++ [Update (length env), Pop (length env), Unwind] --为什么这里需要 pop？因为需要把 unwind 的对象露出来
 
 compileRAltBody :: Int -> GmCompiler
@@ -121,6 +124,9 @@ compileE e@(Application (Application (Var op) e0) e1) env
 compileE e@(Application (Var "negate") _) env = compileB e env ++ [MakeInt]
 compileE (Application (Application (Application (Var "if") e0) e1) e2) env =
   compileB e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
+compileE (Application (Application (Var "par") e1) e2) env =
+  compileC e2 env ++ [Push 0, Parallel] ++
+  compileC e1 (argOffset 1 env) ++ [MakeApplication, Eval]
 compileE (Case e alts) env = compileE e env ++ [CaseJump (compileAlts compileEAltBody alts env)]
 compileE e env = compileC e env ++ [Eval]
 

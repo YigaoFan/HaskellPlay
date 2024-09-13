@@ -8,8 +8,8 @@ import GMachine.Util
       GmDumpItem,
       GmStack,
       GmHeap,
-      Node(String), GmVStack )
-import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn)
+      Node(String), GmVStack, GmDump, GmGlobals, GmOutput )
+import PrettyPrint (display, concat, str, Sequence (Newline, Append, Indent, Nil), interleave, num, showAddr, layn, appendNewLineIfNotNull, showItems)
 import Prelude hiding (concat)
 import Heap (Addr, heapLookup)
 import AST (Name)
@@ -20,21 +20,21 @@ showResults :: [GmState] -> [Char]
 showResults states@(s : remain) =
   display (concat [
     str "SuperCombinator definitions", Newline,
-    interleave Newline (map (showSuperCombinator s) (globals s)), Newline, Newline,
+    interleave Newline (map (showSuperCombinator (heap s)) (globals s)), Newline, Newline,
     str "State transitions", Newline,
     layn (map showState states), Newline, -- 这里能不能改成一个一个显示出来，否则由于惰性求值一个出错，所有都显示不出来了。除了 reverse，我想不到其他影响惰性的地方了。
     showHeap (last states) (heap (last states)), Newline,
     showStats (last states), Newline,
-    showOutput (last states), Newline
+    showOutput (output (last states)), Newline
   ])
 
-showSuperCombinator :: GmState -> (Name, Addr) -> Sequence
-showSuperCombinator s (name, addr) =
+showSuperCombinator :: GmHeap -> (Name, Addr) -> Sequence
+showSuperCombinator heap (name, addr) =
   concat [
     str "Code for ", str name, Newline,
     showInstructions code
   ]
-  where (Global _ code) = heapLookup (heap s) addr
+  where (Global _ code) = heapLookup heap addr
 
 showInstructions :: GmCode -> Sequence
 showInstructions code =
@@ -80,48 +80,49 @@ showInstruction MakeBool = str "MakeBool"
 showInstruction MakeInt = str "MakeInt"
 showInstruction Get = str "Get"
 showInstruction Return = str "Return"
+showInstruction Parallel = str "Parallel"
 
 showState :: GmState -> Sequence
 showState state =
   concat [
-    showStack state, Newline,
-    showDump state, Newline,
-    showVStack state, Newline,
+    showStack (stack state) (globals state) (heap state), Newline,
+    showDump (dump state), Newline,
+    showVStack (vStack state), Newline,
     showInstructions (code state), Newline,
-    showOutput state
+    showOutput (output state)
   ]
 
-showOutput :: GmState -> Sequence
-showOutput state =
-  concat [str "Output:\"", str (reverse (output state)), str "\""]
-showStack :: GmState -> Sequence
-showStack state =
+showOutput :: GmOutput -> Sequence
+showOutput output =
+  concat [str "Output:\"", str (reverse output), str "\""]
+showStack :: GmStack -> GmGlobals -> GmHeap -> Sequence
+showStack stack globals heap =
   concat [
     str "Stack:[", Newline,
-    Indent (appendNewLineIfNotNull (map (showStackItem state) (reverse (stack state)))),
+    Indent (appendNewLineIfNotNull (map (showStackItem globals heap) (reverse stack))),
     str "]"
   ]
-showStackItem :: GmState -> Addr -> Sequence
-showStackItem state addr =
-  concat [showAddr addr, str ": ", showNode state addr (heapLookup (heap state) addr)]
-showNode :: GmState -> Addr -> Node -> Sequence
-showNode state addr Uninit = str "Uninit"
-showNode state addr (Num n) = num n
-showNode state addr (String s) = str (show s)
-showNode state addr (Global n g) = concat [str "Global ", str v]
-  where v = head [n | (n, a) <- globals state, addr == a]
-showNode state addr (Application a1 a2) =
+showStackItem :: GmGlobals -> GmHeap -> Addr -> Sequence
+showStackItem globals heap addr =
+  concat [showAddr addr, str ": ", showNode globals addr (heapLookup heap addr)]
+showNode :: GmGlobals -> Addr -> Node -> Sequence
+showNode globals addr Uninit = str "Uninit"
+showNode globals addr (Num n) = num n
+showNode globals addr (String s) = str (show s)
+showNode globals addr (Global n g) = concat [str "Global ", str v]
+  where v = head [n | (n, a) <- globals, addr == a]
+showNode globals addr (Application a1 a2) =
   concat [str "Application ", showAddr a1, str " ", showAddr a2]
-showNode state addr (Indirect a) = concat [str "Indirect ", num a]
-showNode state addr (Construct t coms) = concat [str "Construct ", num t, str " [",
+showNode globals addr (Indirect a) = concat [str "Indirect ", num a]
+showNode globals addr (Construct t coms) = concat [str "Construct ", num t, str " [",
   interleave (str ", ") (map showAddr coms), str "]"
   ]
 
-showDump :: GmState -> Sequence
-showDump state =
+showDump :: GmDump -> Sequence
+showDump dump =
   concat [
     str "Dump:[", Newline,
-    Indent (appendNewLineIfNotNull (map showDumpItem (reverse (dump state)))),
+    Indent (appendNewLineIfNotNull (map showDumpItem (reverse dump))),
     str "]"
   ]
 showDumpItem :: GmDumpItem -> Sequence
@@ -150,19 +151,13 @@ shortShowStack stack =
     str "]"
   ]
 shortShowVStack :: GmVStack -> Sequence
-shortShowVStack vStack =
-  concat [
-    str "[",
-    interleave (str ", ") (map num vStack),
-    str "]"
-  ]
+shortShowVStack = showItems num
 
-showVStack :: GmState -> Sequence
-showVStack state =
+showVStack :: GmVStack -> Sequence
+showVStack vStack =
   concat [
-    str "VStack: [ ",
-    interleave (str ", ") (map num (vStack state)),
-    str " ]"
+    str "VStack: ",
+    showItems num vStack
   ]
 
 showStats :: GmState -> Sequence
@@ -175,14 +170,6 @@ showHeap state (size, free, addrObjs) =
     [
       str "count: ", num size, Newline,
       str "{", Newline,
-      Indent (interleave Newline (map (\(addr, obj) -> concat [showAddr addr, str " : ", showNode state addr obj]) addrObjs)), Newline,
+      Indent (interleave Newline (map (\(addr, obj) -> concat [showAddr addr, str " : ", showNode (globals state) addr obj]) addrObjs)), Newline,
       str "}"
     ]
-
--- | will interleave NewLine in lines
-appendNewLineIfNotNull :: [Sequence] -> Sequence
-appendNewLineIfNotNull lines =
-      Append (interleave Newline lines)
-        (if not (null lines)
-          then Newline
-          else Nil)
